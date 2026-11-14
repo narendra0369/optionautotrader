@@ -1,13 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Option Auto Trader</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option Auto Trader</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1220;color:#e8eef8;font-family:Arial,sans-serif}
+header{padding:20px;background:#111c30;border-bottom:1px solid #263650}
+h1{margin:0;color:#42d6a4;font-size:25px}
+header p{color:#9aabc3;margin:7px 0 0}
+main{max-width:1100px;margin:auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.card{background:#142138;border:1px solid #293b58;border-radius:12px;padding:18px;margin-bottom:15px}
+.card h3{margin:0 0 12px;color:#9eb2d0;font-size:14px}
+.value{font-size:25px;font-weight:bold}
+.green{color:#42d6a4}.red{color:#ff7272}
+input,select{width:100%;padding:12px;margin:7px 0 13px;background:#0b1628;color:white;border:1px solid #405472;border-radius:7px}
+button{padding:12px 18px;background:#18a77c;color:white;border:0;border-radius:7px;cursor:pointer;font-weight:bold}
+button:hover{background:#128764}
+.secondary{background:#344966}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:12px 8px;text-align:left;border-bottom:1px solid #30415a}
+small{color:#9aabc3}
+.status{color:#f4c66b}
+footer{text-align:center;color:#8192aa;padding:25px}
+</style>
 </head>
 <body>
-    <h1>Option Auto Trader</h1>
-    <p>Angel One SmartAPI Redirect Page</p>
-    <p>API integration setup in progress.</p>
+<header>
+<h1>OPTION AUTO TRADER</h1>
+<p>Indian Options Trading Dashboard | Paper Trading Mode</p>
+</header>
+
+<main>
+<div class="grid">
+<div class="card">
+<h3>TRADING MODE</h3>
+<div class="value green">PAPER MODE</div>
+<small>No real orders will be placed</small>
+</div>
+<div class="card">
+<h3>VIRTUAL CAPITAL</h3>
+<div class="value" id="capital">₹25,000</div>
+</div>
+<div class="card">
+<h3>TODAY'S P&L</h3>
+<div class="value" id="pnl">₹0</div>
+</div>
+<div class="card">
+<h3>API CONNECTION</h3>
+<div class="value status">Not Connected</div>
+<small>Angel One integration pending</small>
+</div>
+</div>
+
+<div class="card">
+<h3>RISK MANAGEMENT SETTINGS</h3>
+<div class="grid">
+<div>
+<label>Risk per trade (₹)</label>
+<input id="risk" type="number" value="300">
+</div>
+<div>
+<label>Reward per trade (₹)</label>
+<input id="reward" type="number" value="600">
+</div>
+<div>
+<label>Maximum trades per day</label>
+<select id="maxTrades">
+<option>1</option><option selected>2</option>
+</select>
+</div>
+</div>
+<small>Risk : Reward = 1 : 2 | Paper trading only</small>
+</div>
+
+<div class="card">
+<h3>NEW PAPER TRADE</h3>
+<label>Instrument</label>
+<select id="symbol">
+<option>NIFTY</option>
+<option>BANKNIFTY</option>
+</select>
+<label>Trade Direction</label>
+<select id="direction">
+<option value="BUY">BUY</option>
+<option value="SELL">SELL</option>
+</select>
+<label>Entry Price (₹)</label>
+<input id="entry" type="number" placeholder="Enter simulated entry price">
+<label>Exit Price (₹)</label>
+<input id="exit" type="number" placeholder="Enter simulated exit price">
+<label>Quantity</label>
+<input id="qty" type="number" value="1" min="1">
+<button onclick="addTrade()">Calculate & Save Paper Trade</button>
+<p id="message" class="status"></p>
+</div>
+
+<div class="card">
+<h3>PAPER TRADE HISTORY</h3>
+<table>
+<thead><tr><th>Instrument</th><th>Side</th><th>Entry</th><th>Exit</th><th>P&L</th></tr></thead>
+<tbody id="history">
+<tr><td colspan="5">No trades yet</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h3>STRATEGY STATUS</h3>
+<p>10-Day Breakout Strategy: <span class="status">Not Connected</span></p>
+<p>EMA 9 / EMA 21: <span class="status">Not Connected</span></p>
+<p>Automatic market data: <span class="status">Pending</span></p>
+</div>
+</main>
+
+<footer>Option Auto Trader | Version 1.0 | Demo Dashboard</footer>
+
+<script>
+let trades=[];
+let total=0;
+
+function addTrade(){
+ const symbol=document.getElementById('symbol').value;
+ const side=document.getElementById('direction').value;
+ const entry=Number(document.getElementById('entry').value);
+ const exit=Number(document.getElementById('exit').value);
+ const qty=Number(document.getElementById('qty').value);
+ const max=Number(document.getElementById('maxTrades').value);
+ const risk=Number(document.getElementById('risk').value);
+ const reward=Number(document.getElementById('reward').value);
+ const msg=document.getElementById('message');
+
+ if(!entry||!exit||!qty||entry<=0||exit<=0||qty<=0){
+  msg.textContent="Please enter valid entry, exit and quantity.";
+  return;
+ }
+ if(trades.length>=max){
+  msg.textContent="Maximum daily paper trades reached.";
+  return;
+ }
+ const pnl=(side==="BUY"?exit-entry:entry-exit)*qty;
+ if(pnl < -risk || pnl > reward){
+  msg.textContent="P&L exceeds your configured risk/reward. Trade not saved.";
+  return;
+ }
+ trades.push({symbol,side,entry,exit,pnl});
+ total+=pnl;
+ document.getElementById('pnl').textContent=
+  (total<0?"-₹":"₹")+Math.abs(total).toFixed(2);
+ document.getElementById('pnl').className=
+  "value "+(total>=0?"green":"red");
+ document.getElementById('history').innerHTML=trades.map(t=>
+ `<tr><td>${t.symbol}</td><td>${t.side}</td><td>${t.entry}</td><td>${t.exit}</td><td class="${t.pnl>=0?'green':'red'}">₹${t.pnl.toFixed(2)}</td></tr>`
+ ).join("");
+ msg.textContent="Paper trade saved successfully.";
+}
+</script>
 </body>
 </html>
