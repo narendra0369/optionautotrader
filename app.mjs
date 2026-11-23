@@ -1,4 +1,100 @@
 import {TOTAL,parseCSV} from './engine.mjs';
+// BEGIN EMBEDDED CANDLE VIEWER (bundled because Render static build copies only app.mjs)
+// Self-contained candle chart. Data are verified external OHLC only; never simulated.
+const TIMEFRAMES=['1m','5m','15m','30m','1h','4h','1d'];
+const FRAME_MS={'1m':60_000,'5m':300_000,'15m':900_000,'30m':1800_000,'1h':3600_000,'4h':14_400_000,'1d':86_400_000};
+const API_ROOT='https://optionx-market-feed.onrender.com';
+const $=id=>document.getElementById(id);
+const tv={NIFTY:'NSE:NIFTY',BANKNIFTY:'NSE:BANKNIFTY',BTC:'KRAKEN:XBTUSD'};
+function completeBars(bars,tf,now=Date.now()){
+ if(!TIMEFRAMES.includes(tf))throw Error('Unsupported timeframe');
+ // Never include a still-forming bar in a historical backtest.
+ return bars.filter(b=>Number.isFinite(b.time)&&Number.isFinite(b.close)&&b.time+FRAME_MS[tf]<=now-5000);
+}
+function dateLabel(t,tf){return new Date(t).toLocaleString('en-IN',{month:'short',day:'2-digit',...(tf!=='1d'?{hour:'2-digit',minute:'2-digit',hour12:false}:{})});}
+function symbolPrice(m,n){return (m==='BTC'?'$':'₹')+n.toLocaleString('en-IN',{maximumFractionDigits:m==='BTC'?2:2,minimumFractionDigits:2});}
+function mountCharts({onResearch}){
+ let market='NIFTY',tf='15m',payload=null,seen='',busy=false,view=110,endOffset=0,hoverIndex=null,dragX=null;
+ const canvas=$('priceCanvas'),ctx=canvas.getContext('2d');
+ const chart=$('chartArea');
+ const status=(t)=>{$('chartStatus').textContent=t;};
+ const setLink=()=>{$('tvLink').href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(tv[market])+'&interval='+encodeURIComponent(tf==='1d'?'D':tf==='1h'?'60':tf==='4h'?'240':tf.slice(0,-1));};
+ const nowLabel=()=>new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+ const redraw=()=>{
+  const dpr=Math.min(2,window.devicePixelRatio||1),w=Math.max(250,chart.clientWidth),h=Math.max(290,chart.clientHeight);
+  if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';}
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);ctx.fillStyle='#0d1422';ctx.fillRect(0,0,w,h);
+  const all=payload?.bars||[];if(!all.length){ctx.fillStyle='#a7b3c7';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('Choose a market & timeframe, then load candles',w/2,h/2);return;}
+  const left=12,top=20,right=86,bottom=36,priceH=h-105,paneBottom=top+priceH;
+  const visible=Math.min(all.length,Math.min(350,Math.max(22,Math.round(view))));
+  const end=Math.min(all.length,Math.max(visible,all.length-endOffset)),start=Math.max(0,end-visible),bars=all.slice(start,end);
+  if(!bars.length)return;
+  const lo=Math.min(...bars.map(x=>x.low)),hi=Math.max(...bars.map(x=>x.high)),pad=Math.max(.0001,(hi-lo)*.08),vmin=lo-pad,vmax=hi+pad;
+  const plotW=w-right-left,bw=plotW/bars.length,priceY=p=>top+((vmax-p)/(vmax-vmin))*priceH;
+  ctx.strokeStyle='#273348';ctx.lineWidth=1;ctx.font='11px system-ui';ctx.fillStyle='#94a4bd';ctx.textAlign='left';
+  for(let j=0;j<=5;j++){const py=top+priceH*j/5;ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(w-right+3,py);ctx.stroke();ctx.fillText((vmax-(vmax-vmin)*j/5).toFixed(market==='BTC'?0:1),w-right+9,py+4);}
+  const vmaxVol=Math.max(1,...bars.map(b=>b.volume||0));
+  for(let i=0;i<bars.length;i++){
+   const b=bars[i],x=left+(i+.5)*bw,color=b.close>=b.open?'#36b993':'#d46b75';
+   ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=Math.max(1,Math.min(2,bw*.14));ctx.beginPath();ctx.moveTo(x,priceY(b.high));ctx.lineTo(x,priceY(b.low));ctx.stroke();
+   const bodyY=Math.min(priceY(b.open),priceY(b.close)),bodyH=Math.max(1,Math.abs(priceY(b.close)-priceY(b.open)));
+   ctx.fillRect(x-Math.max(1,bw*.31),bodyY,Math.max(2,bw*.62),bodyH);
+   if(b.volume>0)ctx.globalAlpha=.30,ctx.fillRect(x-bw*.3,paneBottom+6,Math.max(2,bw*.6),Math.max(1,(b.volume/vmaxVol)*42)),ctx.globalAlpha=1;
+  }
+  ctx.fillStyle='#9caabe';ctx.font='11px system-ui';ctx.textAlign='center';
+  const tickCount=Math.min(6,Math.max(2,Math.floor(w/150)));
+  for(let j=0;j<tickCount;j++){const i=Math.round(j*(bars.length-1)/(tickCount-1));ctx.fillText(dateLabel(bars[i].time,tf),left+(i+.5)*bw,paneBottom+65);}
+  const last=bars.at(-1),p=priceY(last.close);
+  ctx.strokeStyle=last.close>=last.open?'#36b993':'#d46b75';ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(left,p);ctx.lineTo(w-right,p);ctx.stroke();ctx.setLineDash([]);
+  if(hoverIndex!=null){const i=Math.min(bars.length-1,Math.max(0,hoverIndex));const b=bars[i];
+   const x=left+(i+.5)*bw;ctx.strokeStyle='#8fa0b9';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,paneBottom);ctx.stroke();ctx.setLineDash([]);
+   ctx.fillStyle='#0b1321';ctx.fillRect(left+8,top+5,Math.min(plotW-16,400),25);ctx.fillStyle='#e6ecf4';ctx.font='12px system-ui';ctx.textAlign='left';
+   ctx.fillText(`${dateLabel(b.time,tf)}    O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  C ${b.close.toFixed(2)}`,left+16,top+23);
+  }
+ };
+ const setMarket=m=>{if(!tv[m])return;market=m;$('chartMarket').value=m;setLink();status('Market selected. Load candles.');};
+ const setFrame=f=>{if(!TIMEFRAMES.includes(f))return;tf=f;$('chartTimeframe').value=f;setLink();};
+ async function refresh(userInitiated=true){if(busy)return;busy=true;$('loadChart').disabled=true;status('Loading '+market+' '+tf+' candles from provider…');
+  try{
+    const url=`${API_ROOT}/api/candles?market=${encodeURIComponent(market)}&timeframe=${encodeURIComponent(tf)}`;
+    const ctrl=new AbortController(),id=setTimeout(()=>ctrl.abort(),50000);
+    let response;try{response=await fetch(url,{signal:ctrl.signal,mode:'cors',cache:'no-cache'});}finally{clearTimeout(id);}
+    let data;try{data=await response.json();}catch{throw Error(`Feed returned HTTP ${response.status}`);}
+    if(!response.ok)throw Error(data.error||'Data unavailable');
+    if(data.market!==market||data.timeframe!==tf||!Array.isArray(data.bars)||data.bars.length<25)throw Error('Incomplete provider candles');
+    const valid=data.bars.every((b,i)=>Number.isFinite(b.time)&&b.open>0&&b.high>=Math.max(b.open,b.close)&&b.low<=Math.min(b.open,b.close)&&(i===0||b.time>data.bars[i-1].time));
+    if(!valid)throw Error('Invalid/out-of-order provider candles');
+    payload=data;seen=market+'/'+tf;hoverIndex=null;endOffset=0;view=Math.min(110,data.bars.length);redraw();
+    const c=data.bars.at(-1),prev=data.bars.at(-2),chg=prev?(c.close-prev.close)/prev.close*100:0;
+    $('chartPrice').textContent=symbolPrice(market,c.close);$('chartChange').textContent=(chg>=0?'+':'')+chg.toFixed(2)+'% vs previous candle';
+    $('chartChange').className=chg>=0?'positive':'negative';$('chartFeed').textContent=data.provider;
+    $('chartStamp').textContent='Latest candle '+dateLabel(c.time,tf)+' · checked '+nowLabel()+' IST';
+    $('chartNotice').textContent=data.notice+' Candle limits depend on source. Chart updates are polled, not tick-by-tick.';
+    const done=completeBars(data.bars,tf);$('chartBars').textContent=`${done.length} complete / ${data.bars.length} displayed`;
+    $('researchChart').disabled=done.length<100;
+    status(`${data.bars.length} real provider candles loaded · ${market} ${tf} · ${(data.cacheAgeSeconds||0)>0?'cached':'fresh request'}.`);
+  }catch(e){if(userInitiated){payload=null;seen='';redraw();}status('Feed unavailable: '+e.message+'. Upload CSV in Strategy Lab or use TradingView chart.');$('chartNotice').textContent='No prices invented. Index feeds can be delayed, blocked or unavailable; reload later or upload OHLC.';}
+  finally{busy=false;$('loadChart').disabled=false;}
+ }
+ $('chartMarket').addEventListener('change',e=>{setMarket(e.target.value);refresh();});
+ $('chartTimeframe').addEventListener('change',e=>{setFrame(e.target.value);refresh();});
+ $('loadChart').addEventListener('click',()=>refresh());
+ $('researchChart').addEventListener('click',()=>{
+  if(!payload||seen!==market+'/'+tf){status('Load the selected market and timeframe first.');return;}
+  const bars=completeBars(payload.bars,tf);
+  if(bars.length<100){status(`Only ${bars.length} complete bars; at least 100 needed.`);return;}
+  onResearch({market,timeframe:tf,bars,source:`${payload.provider} · ${market} ${tf} · ${new Date(payload.fetchedAt).toISOString()}`});
+ });
+ canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();const n=Math.min(payload?.bars.length||0,Math.max(22,Math.round(view))),bw=Math.max(1,(r.width-98)/n);hoverIndex=Math.floor((e.clientX-r.left-12)/bw);if(dragX!=null){const move=Math.round((dragX-e.clientX)/bw);if(move){endOffset=Math.min(Math.max(0,(payload?.bars.length||0)-n),Math.max(0,endOffset+move));dragX=e.clientX;}}redraw();});
+ canvas.addEventListener('mouseleave',()=>{hoverIndex=null;dragX=null;redraw();});canvas.addEventListener('mousedown',e=>{dragX=e.clientX;});window.addEventListener('mouseup',()=>dragX=null);
+ canvas.addEventListener('wheel',e=>{if(!payload)return;e.preventDefault();view=Math.min(payload.bars.length,Math.max(22,view*(e.deltaY>0?1.17:.85)));hoverIndex=null;endOffset=0;redraw();},{passive:false});
+ new ResizeObserver(redraw).observe(chart);
+ setLink();redraw();
+ setInterval(()=>{if($('page-markets')?.classList.contains('active')&&payload&&!busy)refresh(false);},45000);
+ return {select(m){setMarket(m);},refresh,redraw};
+}
+
+// END EMBEDDED CANDLE VIEWER
 // Publishable Supabase key only. NEVER place a secret or service-role key in frontend code.
 const SUPABASE_URL='https://yghijfzwsvmzaffllszl.supabase.co';
 const SUPABASE_PUBLISHABLE='sb_publishable_4MUEQ2Nj1siLELHYIlEJ6g_7L4QVEsr';
@@ -10,20 +106,21 @@ const client=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_PUBLISHABLE,{
 const txt=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const short=(n,d=2)=>n==null||!Number.isFinite(n)?'—':Number(n).toFixed(d);
 const niceDate=t=>t?new Date(t).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—';
-const headings={dashboard:'Trading research workspace',lab:'200K strategy factory',results:'Strategy rankings & validation',account:'My account'};
+const headings={dashboard:'Trading research workspace',markets:'Market charts & candle explorer',lab:'200K strategy factory',results:'Strategy rankings & validation',account:'My account'};
 function page(name){
  if(!headings[name])return;
  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+name));
  document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===name));
- setText('pageHeading',headings[name]);setText('breadcrumb',({dashboard:'Overview',lab:'Strategy Lab',results:'Results',account:'Account'})[name]);
+ setText('pageHeading',headings[name]);setText('breadcrumb',({dashboard:'Overview',markets:'Market Charts',lab:'Strategy Lab',results:'Results',account:'Account'})[name]);
  location.hash=name;
 }
 document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>page(x.dataset.page)));
-document.querySelectorAll('[data-goto]').forEach(x=>x.addEventListener('click',()=>{if(x.dataset.market)selectMarket(x.dataset.market);page(x.dataset.goto);}));
+document.querySelectorAll('[data-goto]').forEach(x=>x.addEventListener('click',()=>{if(x.dataset.market){selectMarket(x.dataset.market);if(x.dataset.goto==='markets'){chartController.select(x.dataset.market);chartController.refresh();}}page(x.dataset.goto);}));
 byId('userButton').addEventListener('click',()=>page('account'));
-function selectMarket(m){activeMarket=m;byId('market').value=m;updateDataInfo();}
+function selectMarket(m){activeMarket=m;byId('market').value=m;const d=uploads[m];if(d)byId('labTimeframe').value=d.timeframe;updateDataInfo();}
 byId('market').addEventListener('change',e=>selectMarket(e.target.value));
-function updateDataInfo(){const d=uploads[activeMarket];setText('dataInfo',d?`${d.name} · ${d.bars.length.toLocaleString('en-IN')} validated 15-minute candles · ${niceDate(d.bars[0].time)} to ${niceDate(d.bars.at(-1).time)} · stored in this tab only`:'Upload ascending 15-minute OHLC candles with headers: time, open, high, low, close. Market CSV stays in your browser and is not uploaded to Supabase.');byId('scanBtn').disabled=!d||!!worker;}
+byId('labTimeframe').addEventListener('change',()=>updateDataInfo());
+function updateDataInfo(){const d=uploads[activeMarket],tf=byId('labTimeframe').value;const matched=!!d&&d.timeframe===tf;setText('dataInfo',d?`${d.name} · ${d.bars.length.toLocaleString('en-IN')} ${d.timeframe} candles · ${niceDate(d.bars[0].time)} to ${niceDate(d.bars.at(-1).time)} · stored in this tab only${matched?'':' · choose '+d.timeframe+' timeframe to backtest loaded data'}`:'Load real candles in Live Charts, or upload CSV with headers: time, open, high, low, close. Market data stays in your browser, not Supabase.');byId('scanBtn').disabled=!matched||!!worker;}
 byId('csvFile').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
  try{
@@ -31,18 +128,19 @@ byId('csvFile').addEventListener('change',async e=>{
   const bars=parseCSV(await file.text());
   const intervals=[];for(let k=1;k<bars.length;k++)if(bars[k].time>bars[k-1].time)intervals.push(bars[k].time-bars[k-1].time);
   intervals.sort((a,b)=>a-b);const median=intervals[Math.floor(intervals.length/2)];
-  if(Math.abs(median-900000)>90000)throw Error(`Data appears to be ${Math.round(median/60000)}-minute candles, not 15-minute. Please provide 15-minute OHLC CSV.`);
-  uploads[activeMarket]={bars,name:file.name};
+  const tf=byId('labTimeframe').value,expected=FRAME_MS[tf];
+    if(Math.abs(median-expected)>Math.max(120000,expected*.07))throw Error(`Data appears to be ${Math.round(median/60000)}-minute candles, not ${tf}. Change the timeframe selection or provide matching OHLC CSV.`);
+  uploads[activeMarket]={bars,name:file.name,timeframe:byId('labTimeframe').value};
   setText('state-'+activeMarket,`${bars.length.toLocaleString('en-IN')} BARS READY`);
-  setText('dataCount',Object.values(uploads).filter(Boolean).length+' / 3');updateDataInfo();setText('scanStatus','Ready to backtest '+activeMarket+'.');
+  setText('dataCount',Object.values(uploads).filter(Boolean).length+' / 3');updateDataInfo();setText('scanStatus','Ready to backtest '+activeMarket+' '+byId('labTimeframe').value+'.');
  }catch(err){setText('scanStatus','Invalid CSV: '+(err.message||err));e.target.value='';}
 });
 function stopWorker(note='Scan stopped. No partial results are ranked.'){
- if(worker){worker.terminate();worker=null;}byId('scanBtn').disabled=!uploads[activeMarket];byId('stopBtn').disabled=true;setText('scanStatus',note);
+ if(worker){worker.terminate();worker=null;}updateDataInfo();byId('stopBtn').disabled=true;setText('scanStatus',note);
 }
 byId('stopBtn').addEventListener('click',()=>stopWorker());
 byId('scanBtn').addEventListener('click',()=>{
- if(worker)return;const d=uploads[activeMarket];if(!d){setText('scanStatus','Upload a CSV first.');return;}
+ if(worker)return;const d=uploads[activeMarket];if(!d||d.timeframe!==byId('labTimeframe').value){setText('scanStatus','Load chart candles or upload CSV matching selected timeframe first.');return;}
  const feesBps=Number(byId('fees').value),limit=Number(byId('scanSize').value),depth=Number(byId('depth').value);
  if(!Number.isFinite(feesBps)||feesBps<0||feesBps>500){setText('scanStatus','Cost must be 0–500 basis points.');return;}
  if(!Number.isInteger(limit)||limit<1||limit>TOTAL)return;
@@ -54,7 +152,7 @@ byId('scanBtn').addEventListener('click',()=>{
    if(r.type==='error'){stopWorker('Backtest error: '+r.message);return;}
    if(r.type==='complete'){
      worker.terminate();worker=null;byId('stopBtn').disabled=true;byId('scanBtn').disabled=false;byId('progressBar').style.width='100%';
-     const run={market:r.market,source:r.source,bars:set.length,screened:r.done,viable:r.viable,elapsed:r.elapsed,trainingBars:r.trainBars,testBars:r.testBars,splitTime:r.splitTime,costBps:r.feesBps,depth:r.depth,top:r.top,createdAt:new Date().toISOString()};
+     const run={market:r.market,timeframe:d.timeframe,source:r.source,bars:set.length,screened:r.done,viable:r.viable,elapsed:r.elapsed,trainingBars:r.trainBars,testBars:r.testBars,splitTime:r.splitTime,costBps:r.feesBps,depth:r.depth,top:r.top,createdAt:new Date().toISOString()};
      lastRun=run;displayRun(run);page('results');setText('scanStatus',`Completed ${r.done.toLocaleString('en-IN')} configurations in ${short(r.elapsed,1)}s. Candidate selection used training data only.`);
      if(sessionUser)await saveRun(run);
    }
@@ -63,7 +161,7 @@ byId('scanBtn').addEventListener('click',()=>{
  worker.postMessage({type:'scan',bars:set,market,limit,feesBps,depth,source:d.name});
 });
 function configName(c){return `${['SMA cross','EMA cross','RSI reverse','Donchian','Bollinger'][c.signal]} · ${['No filter','Trend','RSI','Volatility','Momentum'][c.filter]} · ${['Fixed','Trailing','Breakeven','Timed'][c.exit]} · ${c.period}p · ${c.stop}×ATR · ${c.rr}R · ${c.buffer}bps`;}
-function displayRun(run){lastRun=run;setText('resultMarket',run.market);setText('screened',run.screened.toLocaleString('en-IN'));setText('viable',run.viable.toLocaleString('en-IN'));setText('splitDate',niceDate(run.splitTime));
+function displayRun(run){lastRun=run;setText('resultMarket',run.market+(run.timeframe?' · '+run.timeframe:''));setText('screened',run.screened.toLocaleString('en-IN'));setText('viable',run.viable.toLocaleString('en-IN'));setText('splitDate',niceDate(run.splitTime));
  const body=byId('rankingRows');body.replaceChildren();
  if(!run.top?.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=9;td.className='empty';td.textContent='No candidates met the training criteria (positive R and at least 8 training trades). Try more history or different costs.';tr.append(td);body.append(tr);return;}
  for(let i=0;i<run.top.length;i++){
@@ -74,13 +172,13 @@ function displayRun(run){lastRun=run;setText('resultMarket',run.market);setText(
 }
 function exportBlob(name,mime,contents){const blob=new Blob([contents],{type:mime}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 byId('downloadJson').addEventListener('click',()=>{if(!lastRun){alert('Run a backtest first.');return;}exportBlob(`optionx_${lastRun.market}_${Date.now()}.json`,'application/json',JSON.stringify(lastRun,null,2));});
-byId('downloadCsv').addEventListener('click',()=>{if(!lastRun){alert('Run a backtest first.');return;}const h=['rank','market','strategy_id','signal','filter','exit','period','atr_stop','reward_R','entry_buffer_bps','train_trades','train_win_pct','train_net_R','train_profit_factor','oos_trades','oos_win_pct','oos_net_R','oos_max_drawdown_R'];const lines=[h.join(',')];lastRun.top.forEach(({config:c,train:t,test:v},i)=>lines.push([i+1,lastRun.market,c.id,c.signal,c.filter,c.exit,c.period,c.stop,c.rr,c.buffer,t.trades,t.winRate,t.netR,t.profitFactor,v.trades,v.winRate,v.netR,v.maxDrawdownR].map(x=>x??'').join(',')));exportBlob(`optionx_rankings_${lastRun.market}.csv`,'text/csv',lines.join('\n'));});
+byId('downloadCsv').addEventListener('click',()=>{if(!lastRun){alert('Run a backtest first.');return;}const h=['rank','market','timeframe','strategy_id','signal','filter','exit','period','atr_stop','reward_R','entry_buffer_bps','train_trades','train_win_pct','train_net_R','train_profit_factor','oos_trades','oos_win_pct','oos_net_R','oos_max_drawdown_R'];const lines=[h.join(',')];lastRun.top.forEach(({config:c,train:t,test:v},i)=>lines.push([i+1,lastRun.market,lastRun.timeframe||'',c.id,c.signal,c.filter,c.exit,c.period,c.stop,c.rr,c.buffer,t.trades,t.winRate,t.netR,t.profitFactor,v.trades,v.winRate,v.netR,v.maxDrawdownR].map(x=>x??'').join(',')));exportBlob(`optionx_rankings_${lastRun.market}.csv`,'text/csv',lines.join('\n'));});
 async function saveRun(run){
- try{const payload={user_id:sessionUser.id,market:run.market,source:run.source,bars:run.bars,screened:run.screened,viable:run.viable,split_time:new Date(run.splitTime).toISOString(),training_bars:run.trainingBars,test_bars:run.testBars,cost_bps:run.costBps,results:run.top};const {error}=await client.from('optionx_backtest_runs').insert(payload);if(error)throw error;await loadSaved();}
+ try{const payload={user_id:sessionUser.id,market:run.market,timeframe:run.timeframe||'15m',source:run.source,bars:run.bars,screened:run.screened,viable:run.viable,split_time:new Date(run.splitTime).toISOString(),training_bars:run.trainingBars,test_bars:run.testBars,cost_bps:run.costBps,results:run.top};const {error}=await client.from('optionx_backtest_runs').insert(payload);if(error)throw error;await loadSaved();}
  catch(err){setText('scanStatus',`Backtest completed locally. Cloud save unavailable: ${err.message}. Export results as CSV/JSON.`);}
 }
-async function loadSaved(){if(!client||!sessionUser)return;const {data,error}=await client.from('optionx_backtest_runs').select('id,market,source,bars,screened,viable,split_time,training_bars,test_bars,cost_bps,results,created_at').order('created_at',{ascending:false}).limit(20);if(error){setText('savedRuns','Cloud history unavailable: '+error.message);return;}saved=data||[];const root=byId('savedRuns');root.replaceChildren();if(!saved.length){root.textContent='No saved runs yet.';return;}
- for(const run of saved){const node=document.createElement('div');node.className='run-row';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=run.market+' · '+Number(run.screened).toLocaleString('en-IN')+' screened';const detail=document.createElement('span');detail.textContent=' · '+niceDate(run.created_at)+' · '+run.source; text.append(title,detail);const btn=document.createElement('button');btn.className='outline';btn.textContent='View';btn.addEventListener('click',()=>{displayRun({market:run.market,source:run.source,bars:run.bars,screened:run.screened,viable:run.viable,splitTime:run.split_time,trainingBars:run.training_bars,testBars:run.test_bars,costBps:run.cost_bps,top:run.results});page('results');});node.append(text,btn);root.append(node);}
+async function loadSaved(){if(!client||!sessionUser)return;const {data,error}=await client.from('optionx_backtest_runs').select('id,market,timeframe,source,bars,screened,viable,split_time,training_bars,test_bars,cost_bps,results,created_at').order('created_at',{ascending:false}).limit(20);if(error){setText('savedRuns','Cloud history unavailable: '+error.message);return;}saved=data||[];const root=byId('savedRuns');root.replaceChildren();if(!saved.length){root.textContent='No saved runs yet.';return;}
+ for(const run of saved){const node=document.createElement('div');node.className='run-row';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=run.market+' · '+(run.timeframe||'15m')+' · '+Number(run.screened).toLocaleString('en-IN')+' screened';const detail=document.createElement('span');detail.textContent=' · '+niceDate(run.created_at)+' · '+run.source; text.append(title,detail);const btn=document.createElement('button');btn.className='outline';btn.textContent='View';btn.addEventListener('click',()=>{displayRun({market:run.market,timeframe:run.timeframe,source:run.source,bars:run.bars,screened:run.screened,viable:run.viable,splitTime:run.split_time,trainingBars:run.training_bars,testBars:run.test_bars,costBps:run.cost_bps,top:run.results});page('results');});node.append(text,btn);root.append(node);}
 }
 byId('refreshRuns').addEventListener('click',loadSaved);
 const gate=byId('authGate');function authMsg(t){setText('authStatus',t);}
@@ -99,4 +197,12 @@ byId('signOut').addEventListener('click',async()=>{if(client)await client.auth.s
 function setUser(user){sessionUser=user||null;gate.hidden=!!user;setText('userButton',user?user.email?.split('@')[0]||'Account':'Sign in');setText('accountEmail',user?.email||'Not signed in');if(user)loadSaved();}
 if(!client){authMsg('Authentication unavailable: could not load Supabase client. Check internet and refresh.');}
 else{client.auth.onAuthStateChange((_event,session)=>setUser(session?.user));const {data,error}=await client.auth.getSession();if(error)authMsg(error.message);else setUser(data.session?.user);}
+const chartController=mountCharts({onResearch:({market,timeframe,bars,source})=>{
+ if(worker)stopWorker('Previous scan stopped because chart data changed.');
+ uploads[market]={bars,name:source,timeframe};selectMarket(market);byId('labTimeframe').value=timeframe;
+ setText('state-'+market,`${bars.length.toLocaleString('en-IN')} BARS READY`);
+ setText('dataCount',Object.values(uploads).filter(Boolean).length+' / 3');
+ updateDataInfo();setText('scanStatus',`Real ${market} ${timeframe} candles loaded · ${bars.length} complete bars · select scan size then Run backtest.`);page('lab');
+ }});
 selectMarket('NIFTY');if(headings[location.hash.substring(1)])page(location.hash.substring(1));
+if(location.hash.substring(1)==='markets')chartController.refresh();

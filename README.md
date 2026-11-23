@@ -36,3 +36,15 @@ Run `node tests.mjs` to verify the 200k unique configurations, CSV validation, 1
 ## Security and production checklist
 
 Static hosting over HTTPS; Supabase Auth enabled; row-level security applied via `schema.sql`; password reset/email redirect settings verified; CDN library loaded; HTTPS and CORS in place; no secret keys in the repo; regression backtests against actual contract-level data; independent backtest engine audit before any broker integration. For high-volume SaaS usage, move the 200k jobs to a proper server-side queue and implement per-user quotas, persistence and abuse limits.
+
+## V2 — Charts and no-CSV backtest flow (23 November 2026)
+
+- New **Live Charts** navigation offers NIFTY, BANKNIFTY, Bitcoin (BTC/USD Kraken spot), and 1m / 5m / 15m / 30m / 1h / 4h / 1d candle intervals.
+- Separate **read-only** Render Python feed service exposes `/health` and `/api/candles?market=NIFTY&timeframe=15m` with strict fixed symbol/timeframe allowlist. No broker API secrets or orders. The frontend polls about every 45 seconds while chart page is open; this is NOT a licensed tick-by-tick real-time NSE feed.
+- Indian indices: unofficial Yahoo Finance endpoint (potentially delayed and may be blocked/unavailable), with short intraday historical lookback. Do not advertise as real-time NSE exchange data. Bitcoin: Kraken public OHLC BTC/USD (spot, not futures). Kraken provides up to 720 recent candles per request, may include incomplete last candle.
+- 'Backtest this timeframe' sends only the **completed** selected candles to Strategy Lab, enabling 2,000 / 20,000 / 200,000 combination scans and train/holdout results. Current candle excluded; no made-up prices. The CSV import is retained and its interval is validated against the selected timeframe.
+- The current Render Static Site build command copies `index.html styles.css app.mjs engine.mjs engine.worker.mjs` only. For deployment, `chart.mjs` is embedded in `app.mjs` between BEGIN/END EMBEDDED CANDLE VIEWER markers; `chart.mjs` remains pure-source module for unit tests. If future features are added to `chart.mjs`, regenerate this embedded section or update the static site build command to copy it and restore the module import.
+- The existing Supabase table gets nullable/default `timeframe` column to persist run timescale alongside source and results. SQL migration in `timeframe_migration.sql`.
+- For live, legally authorized 1-minute NIFTY/BANKNIFTY ticks and options premium backtests, a separately contracted/licensed market feed and contract-specific data are still required. Yahoo data is indicative; provider failure is surfaced as an error and never replaced with fictional candles.
+
+Tests: `node tests.mjs`; `python -m unittest -q test_market_api`; `python market_api.py` for read-only local API. No external packages for API. Browser tests may use mocked market-data response; they do not prove an external market data provider is reachable.

@@ -10,3 +10,11 @@ const prep=prepare(bars);for(let i=0;i<1000;i++){const cfg=configAt((i*104729)%T
 assert.throws(()=>parseCSV('time,open,high,low,close\n2025-01-01,1,2,0,1'));
 const dup=[...line];dup[8]=dup[7];assert.throws(()=>parseCSV(dup.join('\n')), /invalid|duplicate/);
 console.log('PASS: 200,000 unique combinations, valid CSV, invalid/duplicate rejection, 1000 tested configs, bounded metrics, no broker integrations');
+import {completeBars, FRAME_MS, TIMEFRAMES} from './chart.mjs';
+import {readFileSync} from 'node:fs';
+assert.deepEqual(TIMEFRAMES,['1m','5m','15m','30m','1h','4h','1d']);
+assert.equal(FRAME_MS['4h'],14400000);
+assert.equal(completeBars([{time:0,close:1},{time:60_000,close:1}],'1m',120_000).length,1);
+assert.ok(readFileSync('app.mjs','utf8').includes('function mountCharts('));
+assert.ok(readFileSync('index.html','utf8').includes('id="page-markets"'));
+console.log('PASS: chart timeframes, completed candle filter, bundled chart controller');
