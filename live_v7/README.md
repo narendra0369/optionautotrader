@@ -126,3 +126,45 @@ broker call was made, and no order was placed.
    broker order placement can safely be enabled.
 
 Status: **SOURCE DRAFTS WRITTEN; TESTS NOT RUN; NO PRODUCTION DEPLOY**.
+
+
+## Continued build: integrated source-only V7 preparation (2026-11-24)
+
+The following were also committed to this isolated branch **without testing**
+and **without a production deploy**:
+
+- contracts.py: exact Decimal lot/tick/multiplier, provenance and quote checks.
+  Delta perpetual futures require explicit verified no-expiry status.
+- angel_master.py: broker-published NFO contract candidate filtering.
+  Does NOT assume tick/strike scale or invent available contracts.
+- read_only_transport.py: restricted GET-only HTTPS Angel and Delta account
+  transport, disabled by default, with no redirects or arbitrary hosts.
+- read_only_bridge.py: broker-profile-matched 15-minute Angel RAM session
+  bridge for server-only Order Book and Positions reads, behind default OFF.
+- ledger_store.py: transactional, idempotent **shadow-preview** ledger writer.
+  The matching private Postgres schema is a draft only and NOT installed.
+- protective_exit.py: stop/target coverage and broker-acknowledgement
+  validation *plans*, not actual broker stop orders.
+- risk_policy.py: existing stepped paper lots retained, no silent live
+  conversion. Live budget and lot size require separate approval.
+- secret_vault.py: deliberately locked vault interface; actual encrypted
+  vault/KMS provider not installed and no credential values stored.
+- readiness.py, market_api.py and live_ui.mjs/index.html: versioned,
+  owner-authenticated, non-executing readiness display. The deployed V6
+  website is not changed.
+- test_future_safety.py: future offline tests written but **NOT RUN**.
+- private_ledger_schema_draft.sql: private Supabase ownership, journal,
+  protection, risk, audit and kill-switch tables; **NOT APPLIED**.
+- RELEASE_GATES.md: detailed remaining prerequisites and release controls.
+
+Current release status:
+- Existing V6 live-order gateway: hard locked.
+- V7 live-order implementation: intentionally absent.
+- V7 source: saved to GitHub development branch.
+- Broker logins, real orders, and live trading: not started here.
+- Tests: deferred at the user's request.
+- Render/Supabase production: unchanged by these V7 commits.
+
+See RELEASE_GATES.md for remaining actions requiring verified infrastructure,
+broker permissions, account approval and later tests. The current read-only
+market feed is not an execution-grade Angel NFO/Delta order source.
