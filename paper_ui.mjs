@@ -123,7 +123,7 @@ export function mountPaper({client,onPage}){
  $('paperReset').addEventListener('click',()=>action('reset'));
  $('paperSync').addEventListener('click',()=>sync());
  $('paperBroker').addEventListener('change',()=>{$('brokerDocs').href=DOCS[$('paperBroker').value];});
- $('brokerDocs').href=DOCS.Zerodha;
+ $('brokerDocs').href=DOCS[$('paperBroker').value]||DOCS.Angel;
  setInterval(()=>{if(user&&document.visibilityState==='visible')sync();},45000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&user)sync();});
  render();

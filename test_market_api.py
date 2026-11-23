@@ -35,3 +35,6 @@ if __name__ == '__main__': unittest.main()
 
 # Safe live gateway regression cases also run in Render
 from test_live_gateway import TestLockedGateway
+
+# Also run the dual-broker public adapter regression tests in Render builds.
+from test_dual_brokers import TestDualBrokers

@@ -12,7 +12,7 @@ export function completeBars(bars,tf,now=Date.now()){
 function dateLabel(t,tf){return new Date(t).toLocaleString('en-IN',{month:'short',day:'2-digit',...(tf!=='1d'?{hour:'2-digit',minute:'2-digit',hour12:false}:{})});}
 function symbolPrice(m,n){return (m==='BTC'?'$':'₹')+n.toLocaleString('en-IN',{maximumFractionDigits:m==='BTC'?2:2,minimumFractionDigits:2});}
 export function mountCharts({onResearch}){
- let market='NIFTY',tf='15m',payload=null,seen='',busy=false,view=110,endOffset=0,hoverIndex=null,dragX=null;
+ let market='NIFTY',tf='15m',source='Kraken',payload=null,seen='',busy=false,view=110,endOffset=0,hoverIndex=null,dragX=null;
  const canvas=$('priceCanvas'),ctx=canvas.getContext('2d');
  const chart=$('chartArea');
  const status=(t)=>{$('chartStatus').textContent=t;};
@@ -50,11 +50,13 @@ export function mountCharts({onResearch}){
    ctx.fillText(`${dateLabel(b.time,tf)}    O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  C ${b.close.toFixed(2)}`,left+16,top+23);
   }
  };
- const setMarket=m=>{if(!tv[m])return;market=m;$('chartMarket').value=m;setLink();status('Market selected. Load candles.');};
+ const setMarket=m=>{if(!tv[m])return;market=m;$('chartMarket').value=m;$('chartBTCSource').disabled=m!=='BTC';setLink();status('Market selected. Load candles.');};
  const setFrame=f=>{if(!TIMEFRAMES.includes(f))return;tf=f;$('chartTimeframe').value=f;setLink();};
  async function refresh(userInitiated=true){if(busy)return;busy=true;$('loadChart').disabled=true;status('Loading '+market+' '+tf+' candles from provider…');
   try{
-    const url=`${API_ROOT}/api/candles?market=${encodeURIComponent(market)}&timeframe=${encodeURIComponent(tf)}`;
+    const url=market==='BTC'&&source==='Delta'
+      ?`${API_ROOT}/api/brokers/delta/candles?symbol=BTCUSD&timeframe=${encodeURIComponent(tf)}`
+      :`${API_ROOT}/api/candles?market=${encodeURIComponent(market)}&timeframe=${encodeURIComponent(tf)}`;
     const ctrl=new AbortController(),id=setTimeout(()=>ctrl.abort(),50000);
     let response;try{response=await fetch(url,{signal:ctrl.signal,mode:'cors',cache:'no-cache'});}finally{clearTimeout(id);}
     let data;try{data=await response.json();}catch{throw Error(`Feed returned HTTP ${response.status}`);}
@@ -62,7 +64,7 @@ export function mountCharts({onResearch}){
     if(data.market!==market||data.timeframe!==tf||!Array.isArray(data.bars)||data.bars.length<25)throw Error('Incomplete provider candles');
     const valid=data.bars.every((b,i)=>Number.isFinite(b.time)&&b.open>0&&b.high>=Math.max(b.open,b.close)&&b.low<=Math.min(b.open,b.close)&&(i===0||b.time>data.bars[i-1].time));
     if(!valid)throw Error('Invalid/out-of-order provider candles');
-    payload=data;seen=market+'/'+tf;hoverIndex=null;endOffset=0;view=Math.min(110,data.bars.length);redraw();
+    payload=data;seen=market+'/'+tf+'/'+source;hoverIndex=null;endOffset=0;view=Math.min(110,data.bars.length);redraw();
     const c=data.bars.at(-1),prev=data.bars.at(-2),chg=prev?(c.close-prev.close)/prev.close*100:0;
     $('chartPrice').textContent=symbolPrice(market,c.close);$('chartChange').textContent=(chg>=0?'+':'')+chg.toFixed(2)+'% vs previous candle';
     $('chartChange').className=chg>=0?'positive':'negative';$('chartFeed').textContent=data.provider;
@@ -76,9 +78,10 @@ export function mountCharts({onResearch}){
  }
  $('chartMarket').addEventListener('change',e=>{setMarket(e.target.value);refresh();});
  $('chartTimeframe').addEventListener('change',e=>{setFrame(e.target.value);refresh();});
+ $('chartBTCSource').addEventListener('change',e=>{source=e.target.value==='Delta'?'Delta':'Kraken';refresh();});
  $('loadChart').addEventListener('click',()=>refresh());
  $('researchChart').addEventListener('click',()=>{
-  if(!payload||seen!==market+'/'+tf){status('Load the selected market and timeframe first.');return;}
+  if(!payload||seen!==market+'/'+tf+'/'+source){status('Load the selected market and timeframe first.');return;}
   const bars=completeBars(payload.bars,tf);
   if(bars.length<100){status(`Only ${bars.length} complete bars; at least 100 needed.`);return;}
   onResearch({market,timeframe:tf,bars,source:`${payload.provider} · ${market} ${tf} · ${new Date(payload.fetchedAt).toISOString()}`});
@@ -87,7 +90,7 @@ export function mountCharts({onResearch}){
  canvas.addEventListener('mouseleave',()=>{hoverIndex=null;dragX=null;redraw();});canvas.addEventListener('mousedown',e=>{dragX=e.clientX;});window.addEventListener('mouseup',()=>dragX=null);
  canvas.addEventListener('wheel',e=>{if(!payload)return;e.preventDefault();view=Math.min(payload.bars.length,Math.max(22,view*(e.deltaY>0?1.17:.85)));hoverIndex=null;endOffset=0;redraw();},{passive:false});
  new ResizeObserver(redraw).observe(chart);
- setLink();redraw();
+ $('chartBTCSource').disabled=true;setLink();redraw();
  setInterval(()=>{if($('page-markets')?.classList.contains('active')&&payload&&!busy)refresh(false);},45000);
  return {select(m){setMarket(m);},refresh,redraw};
 }

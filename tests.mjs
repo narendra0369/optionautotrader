@@ -25,5 +25,9 @@ await import('./live_tests.mjs');
 // versioned paper modules into its dist/ during the test gate, before publishing.
 import {mkdirSync,copyFileSync} from 'node:fs';
 mkdirSync('dist',{recursive:true});
-for(const f of ['paper_engine.mjs','paper_ui.mjs','live_ui.mjs'])copyFileSync(f,'dist/'+f);
-console.log('PASS: paper modules staged for immutable Render static publish command');
+for(const f of ['chart.mjs','paper_engine.mjs','paper_ui.mjs','live_ui.mjs'])copyFileSync(f,'dist/'+f);
+console.log('PASS: chart, paper and live modules staged for fixed Render static build command');
+assert.ok(readFileSync('index.html','utf8').includes('id="saveBrokerRoutes"'));
+assert.ok(readFileSync('index.html','utf8').includes('id="chartBTCSource"'));
+assert.ok(readFileSync('live_ui.mjs','utf8').includes("BTC:['Delta']"));
+console.log('PASS: Angel/Delta route preferences, Delta public contract explorer, chart source selector');

@@ -10,6 +10,7 @@
 <div class="section-bar"><div><h3>Market Charts &amp; Historical Research</h3><p>Actual provider OHLC candles · selectable minute, hourly &amp; daily timeframes · refresh every ~45 seconds while viewing</p></div><span class="tag goldtag">READ ONLY · NO LIVE ORDERS</span></div>
 <div class="panel pad">
  <div class="form-grid market-controls"><label>Instrument<select id="chartMarket"><option value="NIFTY">NIFTY 50 · Index</option><option value="BANKNIFTY">BANK NIFTY · Index</option><option value="BTC">BITCOIN · BTC/USD (Kraken Spot)</option></select></label>
+ <label>Bitcoin candle source<select id="chartBTCSource"><option value="Kraken">Kraken BTC/USD Spot</option><option value="Delta">Delta India BTCUSD Perpetual</option></select></label>
  <label>Candle timeframe<select id="chartTimeframe"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="30m">30 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1d">1 day</option></select></label>
  <div class="chart-action-column"><button class="outline" id="loadChart">↻ Refresh chart</button></div></div>
  <div class="chart-quote"><div><div class="stat-label">LATEST REPORTED CANDLE CLOSE</div><div class="chart-price" id="chartPrice">—</div><span id="chartChange" class="soft">—</span></div><div class="chart-metadata"><strong id="chartFeed">Source pending</strong><span id="chartStamp">No provider candles loaded</span><span id="chartBars">—</span></div></div>
@@ -41,12 +42,12 @@
  <div class="panel pad paper-live-summary"><h3>Auto simulation status</h3><p id="paperEngineStatus">Stopped</p><div class="paper-mini"><span id="paperPosition">No open paper position</span><span id="paperTrades">No closed trades</span><span id="paperCheckpoint">No processed candles</span></div><p class="hint" id="paperSource">Source pending</p></div>
  <div class="section-bar"><div><h3>Paper Trade Ledger</h3><p>Saved results are private to your account (up to the most recent 100 closed trades per market).</p></div></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Time (IST)</th><th>Side</th><th>Units</th><th>Entry</th><th>Exit</th><th>Net P&amp;L</th><th>Exit reason</th></tr></thead><tbody id="paperHistory"></tbody></table></div></div>
  <div class="section-bar"><div><h3>Broker Connection Center</h3><p>Future integration setup: official authentication only; never paste API secrets, password, PIN or TOTP on this public page.</p></div><span class="tag">LIVE ORDERS HARD LOCKED</span></div>
- <div class="panel pad"><div class="form-grid"><label>Broker to integrate<select id="paperBroker"><option value="Zerodha">Zerodha Kite Connect</option><option value="Angel">Angel One SmartAPI</option><option value="Dhan">DhanHQ</option><option value="Delta">Delta Exchange India</option></select></label><div><span class="stat-label">BROKER CONNECTION</span><p class="paper-lock">NOT CONNECTED · Server OAuth/credentials not configured</p></div><div><span class="stat-label">ORDER PERMISSION</span><p class="paper-lock">DISABLED · No live trading routes exist</p></div></div>
+ <div class="panel pad"><div class="form-grid"><label>Broker to integrate<select id="paperBroker"><option value="Zerodha">Zerodha Kite Connect</option><option value="Angel" selected>Angel One SmartAPI</option><option value="Dhan">DhanHQ</option><option value="Delta">Delta Exchange India</option></select></label><div><span class="stat-label">BROKER CONNECTION</span><p class="paper-lock">NOT CONNECTED · Server OAuth/credentials not configured</p></div><div><span class="stat-label">ORDER PERMISSION</span><p class="paper-lock">DISABLED · No live trading routes exist</p></div></div>
  <div class="actions"><a class="outline chart-external" id="brokerDocs" href="https://kite.trade/docs/connect/v3/" rel="noopener noreferrer" target="_blank">Open official broker API guide ↗</a><button class="outline" type="button" disabled>Connect Broker (requires separate verified backend)</button></div>
  <p class="hint">Before live enablement: broker OAuth or secure credential exchange, contract-level prices &amp; lot sizes, paper-to-live validation, broker order/position reconciliation, exchange hours, RMS and regulatory checks, daily stop, kill switch and explicit separate approval. Current site deliberately cannot send real orders.</p></div>
  </section>
 <section id="page-live" class="page">
- <div class="section-bar"><div><h3>Live Broker Integration · Readiness Center</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
+ <div class="section-bar"><div><h3>Angel One + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> This page does not accept API secrets/PIN/TOTP or place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
  <div class="stat-grid">
   <div class="panel stat"><div class="stat-label">SECURE GATEWAY</div><div class="stat-sub" id="liveGateway">Checking…</div></div>
@@ -57,7 +58,7 @@
  <div class="panel pad"><div class="section-bar"><div><h3>Broker &amp; Contract Readiness Preview</h3><p>Use estimated values only. No keys or passwords. This does not authorize an order.</p></div><button class="outline" id="liveRefresh" type="button">Refresh connection status</button></div>
  <div class="form-grid">
   <label>Market<select id="liveMarket"><option value="NIFTY">NIFTY options/futures</option><option value="BANKNIFTY">BANKNIFTY options/futures</option><option value="BTC">Bitcoin derivatives</option></select></label>
-  <label>Future broker<select id="liveBroker"><option value="Zerodha">Zerodha Kite</option><option value="Angel">Angel One SmartAPI</option><option value="Dhan">DhanHQ</option><option value="Delta">Delta Exchange India</option></select></label>
+  <label>Selected broker<select id="liveBroker"><option value="Angel">Angel One SmartAPI</option><option value="Delta">Delta Exchange India</option></select></label>
   <label>Strategy ID<input id="liveStrategy" type="number" min="1" max="200000" step="1" value="1"></label>
   <label>Direction<select id="liveSide"><option>BUY</option><option>SELL</option></select></label>
   <label><span id="liveContractHint">Exact NFO option/future contract label</span><input id="liveContract" maxlength="72" autocomplete="off" placeholder="Instrument label (not index spot symbol)"></label>
@@ -72,6 +73,24 @@
  <div class="live-preview"><strong>ORDER PREVIEW — NOT SENT</strong><div id="livePreview">No live orders; preview only.</div></div>
  <div id="liveCheckResults" class="live-check-list"></div>
  </div>
+ <div class="panel pad broker-dual">
+  <div class="section-bar"><div><h3>Dual Broker Routes · Saved to your account</h3><p>Angel One for both NIFTY markets; Delta India for Bitcoin. Save these preferences across devices — no secrets.</p></div><span class="tag">NO LIVE ORDERS</span></div>
+  <div class="broker-pair">
+   <div class="broker-box"><strong>Angel One SmartAPI</strong><span>NIFTY / BANKNIFTY · CE/PE/Futures</span><small>Broker session: NOT CONNECTED · static-IP and NFO contract mapping required</small><a href="https://smartapi.angelone.in/docs" target="_blank" rel="noopener noreferrer">Official SmartAPI docs ↗</a></div>
+   <div class="broker-box"><strong>Delta Exchange India</strong><span>Bitcoin perpetual futures and options</span><small>Broker session: NOT CONNECTED · API key, IP whitelist, margin and account verification required</small><a href="https://docs.delta.exchange/" target="_blank" rel="noopener noreferrer">Official Delta India docs ↗</a></div>
+  </div>
+  <div class="actions"><button id="saveBrokerRoutes" class="outline" type="button" disabled>Save Angel + Delta routing</button><button id="refreshBrokerRoutes" class="outline" type="button" disabled>Check saved routing</button></div>
+  <p class="hint" id="brokerRoutesStatus" role="status">Sign in to save your trading market/broker preferences. Only routing labels — never API keys.</p>
+ </div>
+ <div class="panel pad broker-dual">
+  <div class="section-bar"><div><h3>Delta India · Real BTC Contract Explorer</h3><p>Load currently listed futures/options from Delta's public API. Select a contract for preview; not an account connection.</p></div></div>
+  <div class="form-grid broker-explorer">
+   <label>Contract category<select id="deltaKind"><option value="future">BTC Futures / Perpetual</option><option value="option">BTC Call / Put Options</option></select></label>
+   <div class="broker-action"><button class="outline" id="loadDeltaProducts" type="button" disabled>Load BTC contracts</button></div>
+  </div>
+  <p class="hint" id="deltaProductsStatus" role="status">Provider list is available only when Delta India responds. Results are the first page, not every expiry.</p>
+  <div id="deltaProductsList" class="delta-contract-list"></div>
+ </div>
  <div class="disclaimer"><b>Before any live release:</b> approved exchange/broker flow and static-IP ownership; per-user secure token vault; exact option/futures contract master; current broker market quotes and lot sizes; authenticated order/position reconciliation with idempotency; margin checks; stop/exit recovery; audit records; verified kill switch; and explicit account-specific opt-in. A public Render chart feed alone is not a safe execution host.</div>
 </section>
 
@@ -81,4 +100,4 @@
 <section id="page-account" class="page"><div class="panel pad account"><div class="account-icon">◈</div><h3>My research account</h3><p id="accountEmail">Sign in to view your account.</p><div class="actions"><button class="outline" id="signOut">Sign out</button></div><p class="hint">Authentication is provided by Supabase. Each saved run is protected by user-specific row-level security. Uploaded market candles and broker credentials are never stored here.</p></div></section>
 </main><footer>OPTIONX © 2026 · Research only · Historical performance is not a guarantee of future returns.</footer></div></div>
 <div id="authGate" class="auth-backdrop"><form id="authForm" class="auth-box"><div class="brand"><span class="emblem">◈</span><span>OPTIONX<small>STRATEGY LAB</small></span></div><h2>Quant research. Simplified.</h2><p>Sign up once to access the strategy factory and save your ranked backtest reports.</p><div class="auth-toggle"><button type="button" id="modeSignup" class="selected">Create account</button><button type="button" id="modeSignin">Sign in</button></div><label>Email address<input type="email" autocomplete="email" id="email" placeholder="you@example.com" required></label><label>Password<input type="password" autocomplete="new-password" minlength="8" id="password" placeholder="Minimum 8 characters" required></label><button type="submit" class="primary wide" id="authSubmit">Create account</button><p role="status" id="authStatus" class="auth-status">Secure sign-in · Paper research only</p><small>By signing in you accept that strategy results are for research and are not recommendations.</small></form></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" defer></script><script type="module" src="app.mjs?v=4"></script></body></html>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" defer></script><script type="module" src="app.mjs?v=5"></script></body></html>

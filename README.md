@@ -76,3 +76,25 @@ Paper Auto page allows selecting an exact 1–200000 strategy ID, market, timefr
 - Public Yahoo index candles and Kraken spot candles are NOT executable NFO option premiums, Indian futures quotes or Delta contract prices. Real fills must never be simulated from those feeds.
 - Build regression: `node tests.mjs && python -m unittest -q test_market_api test_live_gateway`. Current Render static build already runs `node tests.mjs`, which copies the extra frontend modules to `dist/`.
 - Deployment remains on the isolated OptionX branch, preserving `main` and ZELQORIS. No secrets requested or modified.
+
+## V5 — Angel One + Delta India dual-broker routing (23 Nov 2026)
+
+This upgrade focuses on **Angel One SmartAPI** for NIFTY/BANKNIFTY option/future preparation and **Delta Exchange India** for BTC perpetual future / option research. Existing paper-auto and strategy screens remain unchanged.
+
+1. Log in to `https://optionx-200k-strategy-lab.onrender.com/#live`.
+2. Press **Save Angel + Delta routing**. The optional `optionx_broker_routes` Supabase table stores only `user_id`, `market`, `broker` and timestamp under individual row-level security. No API key, PIN, OTP, private token, credential or approval bit is persisted.
+3. Under **Delta India · Real BTC Contract Explorer**, choose futures/perpetual or options and press **Load BTC contracts**. This calls Delta's **public** `/v2/products` endpoint through the Python market feed, filters to BTC and displays the first page (not an exhaustive symbol master). It can fail when Delta returns no results or blocks the host. Selecting a currently live/operational product populates the **order preview only**; does NOT connect the private trading account or place orders.
+4. On **Live Charts**, choose BTC + **Delta India BTCUSD Perpetual** to load the official read-only `/v2/history/candles` BTCUSD derivatives feed for 1m / 5m / 15m / 30m / 1h / 4h / 1d (<=700 completed bars). You can use these candles for *signal-only* backtesting; futures P&L needs the correct contract multiplier, funding, margin and execution costs. Kraken spot remains separately selectable.
+5. For Angel One, check the official SmartAPI documentation and register the broker-approved **static IPv4** for API order requests. Full SmartAPI client-auth, NFO instrument master, broker quotes, account order status/fills, and live execution are **not connected** in V5.
+
+Endpoint matrix (Python read-only service):
+
+- `GET /api/brokers/catalog` — signed-in OPTIONX user; broker mapping and readiness.
+- `GET /api/brokers/delta/products?kind=future|option` — signed-in user; first page of live BTC products from Delta's public product API.
+- `GET /api/brokers/delta/product?symbol=BTCUSD` — signed-in user; verifies one public contract.
+- `GET /api/brokers/delta/candles?symbol=BTCUSD&timeframe=15m` — public research candles; allowlisted BTC symbols and timeframes; not order-grade.
+- All other `/api/brokers/*` POST endpoints respond **HTTP 423**. All `/api/live/orders`, `/api/live/arm`, `/api/live/connect` remain **HTTP 423**. No broker API credentials or signed private requests are implemented.
+
+`node tests.mjs && python -m unittest -q test_market_api` runs local synthetic regressions. Build command on existing Render Static Site is fixed, so tests stage supplemental JS modules into `dist/` before the original copy step; in addition the chart is intentionally bundled into `app.mjs` to support existing deployments. The Python service's existing build command automatically imports `dual_brokers.py` through `market_api.py` and includes `test_dual_brokers.py` through `test_market_api.py`. **No change to the site's main branch or ZELQORIS marketplace service.**
+
+**Release gate before any live auto-trading:** independent owner-only credential vault and authentication, broker-compliant static IP and exchange algo approvals, exact derivative contract mapping, live broker quotes and RMS limits, broker order-status WebSocket/postback with idempotency and recovery, durable encrypted audit trail, tested emergency kill switch and explicit separately approved trade-permission opt-in. The publicly hosted Render research server is not an approved live order executor. Do not share API credentials in chat or the public readiness page.

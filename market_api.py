@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, quote, urlsplit, urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 from live_gateway import capabilities, status as live_status, user_from_token, preflight, hard_block_order
+from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -127,7 +128,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get('Origin', '')
         if origin == ALLOWED_ORIGIN or origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
             self.send_header('Access-Control-Allow-Origin', origin)
-            self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.send_header('Content-Length', '0'); self.end_headers()
 
@@ -135,6 +136,31 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path)
         if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True, 'liveOrdersEnabled': False})
         if path.path == '/api/live/capabilities': return self._json(200, capabilities())
+        if path.path == '/api/brokers/delta/candles':
+            qs = parse_qs(path.query)
+            symbol = qs.get('symbol', ['BTCUSD'])[0]
+            timeframe = qs.get('timeframe', ['15m'])[0]
+            try:
+                return self._json(200, delta_candles(symbol, timeframe))
+            except ValueError as exc:
+                return self._json(400, {'error': str(exc)[:160]})
+            except Exception:
+                return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
+        if path.path.startswith('/api/brokers/'):
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user: return self._json(401, {'error':'Sign in to OptionX to inspect broker routes'})
+            if path.path == '/api/brokers/catalog': return self._json(200, broker_catalog())
+            if path.path == '/api/brokers/delta/product':
+                qs = parse_qs(path.query)
+                try: return self._json(200, delta_product(qs.get('symbol', ['BTCUSD'])[0]))
+                except ValueError as exc: return self._json(400, {'error': str(exc)[:160]})
+                except Exception: return self._json(503, {'error': 'Delta product feed unavailable'})
+            if path.path == '/api/brokers/delta/products':
+                qs = parse_qs(path.query)
+                try: return self._json(200, delta_products(qs.get('kind', ['future'])[0]))
+                except ValueError as exc: return self._json(400, {'error': str(exc)[:160]})
+                except Exception: return self._json(503, {'error':'Delta product list currently unavailable'})
+            return self._json(404, {'error': 'Unsupported broker discovery route'})
         if path.path == '/api/live/status':
             user = user_from_token(self.headers.get('Authorization'))
             return self._json(200, live_status(user)) if user else self._json(401, {'error': 'Valid signed-in session required'})
@@ -150,6 +176,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path.startswith('/api/brokers/'):
+            return self._json(423, hard_block_order())
         if path != '/api/live/preflight':
             # Deliberately no order/margin/cancel POST endpoint. Always fail closed.
             return self._json(423, hard_block_order()) if path.startswith('/api/live/') else self._json(404, {'error': 'Not found'})
