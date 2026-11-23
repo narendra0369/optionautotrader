@@ -84,3 +84,45 @@ Sources:
   https://smartapi.angelone.in/docs
 - SEBI retail algo framework:
   https://www.sebi.gov.in/
+
+
+## V7 continued development (2026-11-24)
+
+Files added in this continued stage:
+- broker_readonly.py: fixed, allowlisted **GET-only** read-route catalog;
+  strict Angel NFO orderbook/position response normalization, unknown-status
+  blocking, and Delta read-only response shape check. No HTTP client here.
+- kill_switch.py: stopped-by-default emergency-stop and reset-request
+  state machine; no enabled/running state can be produced.
+- audit_chain.py: minimum-data HMAC audit event structure, chained digests,
+  and a verifier sketch. This is not an independently anchored audit log
+  until a durable store and a protected server key are integrated.
+
+IMPORTANT: The existing OptionX V6 services still run their original branch.
+The V7 files are standalone development drafts and have no live API
+integration, network client, order methods or live permissions.
+
+### Read-only integration mapping (not yet activated)
+
+Angel One official Python SDK routes: account positions, order book,
+trade book, and funds/RMS are GET endpoints. Only these are listed.
+Delta India exposes read-only private positions and orders endpoints.
+No private credential was read or copied into GitHub, no remote
+broker call was made, and no order was placed.
+
+### Pending after testing is authorized
+
+1. Confirm raw broker schemas from a read-only verified session, then
+   normalize full/partial fills, positions, cost/margin and account identity.
+2. Make a durable per-owner kill switch and append-only audit store with RLS,
+   concurrency protection and an independent HMAC head anchor.
+3. Add authenticated server-only transport, credentials vault and trusted
+   provenance; do not accept browser-supplied readiness booleans.
+4. Run isolated unit and integration tests, outage/partial-fill recovery and
+   a supervised paper/shadow trading period.
+5. Check the registered static outbound IP and applicable exchange/broker
+   algorithmic-trading conditions before designing real execution.
+6. Only after tests and separate explicit owner approval, evaluate whether
+   broker order placement can safely be enabled.
+
+Status: **SOURCE DRAFTS WRITTEN; TESTS NOT RUN; NO PRODUCTION DEPLOY**.
