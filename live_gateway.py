@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 import json
 from datetime import datetime, timezone
+from angel_gateway import status as angel_status
 
 SUPABASE_URL = 'https://yghijfzwsvmzaffllszl.supabase.co'
 # Public (publishable) key only; service role is NEVER required or used.
@@ -72,9 +73,9 @@ def status(user_id: str) -> dict:
     return {'mode': 'READINESS_ONLY', 'identityVerified': bool(user_id),
             'ownerBindingConfigured': bool(allowed_owner),
             'ownerMatch': bool(allowed_owner and user_id == allowed_owner),
-            'brokerConnected': False, 'liveExecutionEnabled': False,
+            'brokerConnected': angel_status(user_id)['connected'], 'liveExecutionEnabled': False,
             'realOrderCount': 0,
-            'nextStep': 'Choose one broker. Its official approval/static-IP flow and secure, user-bound backend credentials are required. Do not enter secrets here.'}
+            'nextStep': 'Angel profile verification can be attempted by the configured owner. This never enables real orders. Verify static-IP requirements separately.'}
 
 
 def _number(data, field, low, high, integer=False):

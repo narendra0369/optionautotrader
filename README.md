@@ -19,11 +19,11 @@ Scanned strategy IDs use the deterministic permutation `id = (step × 104729) mo
 
 ## What this does **not** do
 
-- Does not connect a broker; does not place ANY orders, live or paper orders; not auto trading.
+- Does not place any real broker orders. Later versions add browser-active paper auto (V3) and temporary Angel One profile verification (V6), never live execution.
 - Does not fetch exchange or paid historical market data. No data is preloaded. Data must come from a licensed source or user's own CSV export.
 - Does not prove profitability or a future win rate. No backtest results exist until you upload actual candles and run the engine. In-sample search over 200k candidates entails **severe multiple-testing/overfitting risk**; even a positive OOS result needs independent forward testing.
 - Index price candles are **not options premiums**; the engine gives strategy signal behavior in **R units**, not genuine CE/PE profit or leverage-adjusted return. Real options P&L would require each option's contract-specific premium history, strikes, expiries, fills, fees, and slippage. BTC candle backtests do not account for perpetual futures funding, liquidation, leverage, exchange outages or contract details.
-- Broker credentials must never be entered into this web application.
+- Never enter broker credentials into chat, GitHub or ordinary research fields. V6 offers a dedicated owner-bound HTTPS Angel One verification form; it does not persist PIN/TOTP or allow real trading.
 
 ## Auth and privacy
 
@@ -97,4 +97,19 @@ Endpoint matrix (Python read-only service):
 
 `node tests.mjs && python -m unittest -q test_market_api` runs local synthetic regressions. Build command on existing Render Static Site is fixed, so tests stage supplemental JS modules into `dist/` before the original copy step; in addition the chart is intentionally bundled into `app.mjs` to support existing deployments. The Python service's existing build command automatically imports `dual_brokers.py` through `market_api.py` and includes `test_dual_brokers.py` through `test_market_api.py`. **No change to the site's main branch or ZELQORIS marketplace service.**
 
-**Release gate before any live auto-trading:** independent owner-only credential vault and authentication, broker-compliant static IP and exchange algo approvals, exact derivative contract mapping, live broker quotes and RMS limits, broker order-status WebSocket/postback with idempotency and recovery, durable encrypted audit trail, tested emergency kill switch and explicit separately approved trade-permission opt-in. The publicly hosted Render research server is not an approved live order executor. Do not share API credentials in chat or the public readiness page.
+**Release gate before any live auto-trading:** independent owner-only credential vault and authentication, broker-compliant static IP and exchange algo approvals, exact derivative contract mapping, live broker quotes and RMS limits, broker order-status WebSocket/postback with idempotency and recovery, durable encrypted audit trail, tested emergency kill switch and explicit separately approved trade-permission opt-in. The publicly hosted Render research server is not an approved live order executor. Do not share API credentials in chat or ordinary readiness previews; V6 has a separate temporary, owner-bound Angel One profile-verification form.
+
+## V6 — Angel One SmartAPI temporary account verification (23 Nov 2026)
+
+**Strictly READ-ONLY; zero order placement routes.** No Delta private credentials are requested or modified. V6 adds a personal Angel One connect test to the existing `#live` screen; all prior Paper Auto and backtest features remain.
+
+1. On the signed-in OPTIONX website, open **Live Broker Setup → Angel One · Secure account verification**. Copy the displayed 36-character OPTIONX user ID (it is not an Angel trading credential).
+2. In **Render → optionx-market-feed → Environment**, privately set `OPTIONX_OWNER_USER_ID` to that exact user ID. The Render web service must redeploy after the environment changes. Do not send the UUID, API secrets, PIN or TOTP in chat.
+3. Optionally set `ANGEL_ALLOWED_CLIENT_CODE` to your own Angel One Client Code to forbid accidentally verifying another broker account. `ANGEL_EGRESS_PUBLIC_IPV4` is optional for testing *only if it is the true outbound IPv4*, never a made-up or unverified static IP.
+4. In the exact HTTPS OptionX website, enter your SmartAPI **API Key, Client Code, PIN and current six-digit TOTP** and click **Verify Angel login (read-only)**. The backend verifies the OPTIONX Supabase JWT with Supabase Auth, checks the bound owner, applies a 3-attempts-per-15-minute limit, and sends the SmartAPI login request to the **fixed official `apiconnect.angelone.in` hostname only**. It then fetches the authenticated broker **profile** and requires the returned client code to equal the intended client code. **No order endpoints exist.**
+5. The fields are cleared immediately and are **not stored** in localStorage, Supabase, GitHub, logs, or Render environment variables. A limited session key remains in **backend RAM for at most 15 minutes**, until a restart or when **Clear temporary session** is clicked. This is only a *verified login/profile check*, not guaranteed session persistence, authenticated trading access or broker approval. Broker-issued token values are never returned to the browser.
+6. If the connection returns an error, check the API app status, broker login PIN, newest TOTP, and whether the public server egress can reach the broker. The live site may be subject to third-party changes or provider IP restrictions. The fallback is to use a private workstation or approved static-IP execution infrastructure.
+
+Security controls: verified user JWT; exact owner ID; origin-restricted POST; JSON and strict body size/field validation; server-side broker login/profile only; TLS with default certificate validation and no redirect follow; no credentials in query strings or log messages; generic upstream error messages; owner-only ephemeral session; no token in database or browser; input cleared in UI; tests for 200K strategy regression, CSRF bypass defense, owner mismatch, secrets never returned, 15-minute expiry, mock authentication, rate limiting, account mismatch, and order-write denylist.
+
+**Required for actual Angel auto orders later:** official 2026 SmartAPI rules, approved client-specific static IPv4, correct NFO contract token/lot/tick and expiry, authorized market-data subscription, funded broker RMS, production encryption/vault, broker lifecycle reconciliation, durable idempotency and audit trail, verified kill switch, and separate explicit live-trading release approval. Static Render free egress is not an approved execution IP by itself. Login success does not unlock trade execution.

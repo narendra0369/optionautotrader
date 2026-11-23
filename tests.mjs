@@ -31,3 +31,8 @@ assert.ok(readFileSync('index.html','utf8').includes('id="saveBrokerRoutes"'));
 assert.ok(readFileSync('index.html','utf8').includes('id="chartBTCSource"'));
 assert.ok(readFileSync('live_ui.mjs','utf8').includes("BTC:['Delta']"));
 console.log('PASS: Angel/Delta route preferences, Delta public contract explorer, chart source selector');
+
+assert.ok(readFileSync('index.html','utf8').includes('id="angelConnect"'));
+assert.ok(readFileSync('index.html','utf8').includes('id="angelOwnerId"'));
+assert.ok(readFileSync('live_ui.mjs','utf8').includes("'/api/brokers/angel/connect'"));
+console.log('PASS: secure Angel One login form and no-orders UI added');

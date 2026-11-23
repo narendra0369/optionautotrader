@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 from live_gateway import capabilities, status as live_status, user_from_token, preflight, hard_block_order
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
+from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -146,6 +147,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {'error': str(exc)[:160]})
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
+        if path.path == '/api/brokers/angel/status':
+            user = user_from_token(self.headers.get('Authorization'))
+            return self._json(200, angel_status(user)) if user else self._json(401, {'error': 'Sign in required'})
         if path.path.startswith('/api/brokers/'):
             user = user_from_token(self.headers.get('Authorization'))
             if not user: return self._json(401, {'error':'Sign in to OptionX to inspect broker routes'})
@@ -176,6 +180,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path in ('/api/brokers/angel/connect', '/api/brokers/angel/disconnect'):
+            # CSRF defense: only the published OPTIONX HTTPS origin can send
+            # personal broker login secrets to this endpoint.
+            origin = self.headers.get('Origin', '')
+            local_allowed = (os.getenv('OPTIONX_LOCAL_ANGEL_TEST', '') == '1' and
+                             origin in ('http://localhost:8000', 'http://127.0.0.1:8000'))
+            if origin != ALLOWED_ORIGIN and not local_allowed:
+                return self._json(403, {'error': 'Untrusted website origin'})
+            if self.headers.get('Content-Type','').split(';')[0].strip().lower() != 'application/json':
+                return self._json(415, {'error': 'JSON required'})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user: return self._json(401, {'error': 'Valid OPTIONX login required'})
+            try:
+                n = int(self.headers.get('Content-Length', '0'))
+                if n < 2 or n > 2048: return self._json(413, {'error': 'Invalid request size'})
+                data = json.loads(self.rfile.read(n))
+                if path.endswith('/connect'):
+                    return self._json(200, angel_connect(user, data))
+                if data != {}: return self._json(400, {'error': 'Unexpected disconnect payload'})
+                return self._json(200, angel_disconnect(user))
+            except PermissionError:
+                return self._json(403, {'error': 'Angel One connection is limited to the configured personal OPTIONX owner'})
+            except AuthError as exc:
+                return self._json(400, {'error': str(exc)})
+            except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+                return self._json(400, {'error': 'Invalid Angel connection request'})
         if path.startswith('/api/brokers/'):
             return self._json(423, hard_block_order())
         if path != '/api/live/preflight':

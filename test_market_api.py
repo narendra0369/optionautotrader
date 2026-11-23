@@ -38,3 +38,6 @@ from test_live_gateway import TestLockedGateway
 
 # Also run the dual-broker public adapter regression tests in Render builds.
 from test_dual_brokers import TestDualBrokers
+
+# Render Python build imports these additional offline verification tests.
+from test_angel_gateway import TestAngelGateway

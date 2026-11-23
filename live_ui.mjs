@@ -1,4 +1,4 @@
-// Broker-ready interface, NOT a live trading terminal. No broker secrets accepted here.
+// Broker-ready interface, NOT a live trading terminal. Angel one-time inputs are sent only over authenticated HTTPS to RAM-only verification.
 // Live execution is hard-disabled in the backend, independent of UI state.
 const $ = id => document.getElementById(id);
 const API = 'https://optionx-market-feed.onrender.com';
@@ -38,7 +38,7 @@ export function mountLive({client, onPage}){
  }
  async function request(path, options={}){
   const access=await token();
-  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),15000);
+  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),path==='/api/brokers/angel/connect'?35000:15000);
   try{
    const res=await fetch(API+path,{...options,headers:{Authorization:'Bearer '+access,...(options.headers||{})},signal:controller.signal,mode:'cors',cache:'no-store'});
    const data=await res.json();if(!res.ok)throw Error(data.error||'Gateway HTTP '+res.status);return data;
@@ -129,6 +129,45 @@ export function mountLive({client, onPage}){
   }catch(e){$('deltaProductsStatus').textContent='Delta public feed unavailable: '+e.message+' · No contracts fabricated.';}
   finally{loadingProducts=false;btn.disabled=!user;}
  }
+ async function angelStatus(){
+  if(!user)return;
+  try{
+   const s=await request('/api/brokers/angel/status');
+   setText('angelAccountState',s.connected?`Angel One profile verified · ${s.maskedClientCode} · ${s.verifiedAt} · expires ${s.expiresAt} · READ ONLY`:'Angel not connected · session expired or not verified · LIVE ORDERS LOCKED');
+   setText('angelAuthStatus',!s.ownerConfigured?'Owner binding required: copy the OPTIONX ID below and set OPTIONX_OWNER_USER_ID in the market-feed Render Environment.':!s.ownerMatch?'This login is not authorized as the personal broker owner.':'Owner verified. Only 3 login attempts per 15 minutes. Broker PIN/TOTP are never stored.');
+   setText('liveBrokerStatus',s.connected?'Angel profile verified · NO ORDERS':'NO ACTIVE ANGEL SESSION');
+   $('angelConnect').disabled=!s.ownerMatch;
+   $('angelDisconnect').disabled=!s.connected;
+  }catch(e){setText('angelAuthStatus','Angel session status unavailable: '+e.message);$('angelConnect').disabled=true;}
+ }
+ async function angelVerify(){
+  if(!user)return;
+  const btn=$('angelConnect');btn.disabled=true;
+  const body={apiKey:$('angelApiKey').value.trim(),clientCode:$('angelClient').value.trim().toUpperCase(),pin:$('angelPin').value,totp:$('angelTotp').value.trim()};
+  for(const id of ['angelApiKey','angelClient','angelPin','angelTotp'])$(id).value=''; // clear form immediately
+  setText('angelAuthStatus','Contacting Angel One via secured server; no real order will be sent…');
+  try{
+    const s=await request('/api/brokers/angel/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    setText('angelAccountState',`${s.maskedClientCode} · verified ${s.verifiedAt} · expires ${s.expiresAt} · no order permissions`);
+    await angelStatus();
+    setText('angelAuthStatus','Angel One profile verified. A temporary server-memory session exists; real trading remains blocked.');
+  }catch(e){setText('angelAuthStatus','Angel connection failed: '+e.message+' · No real orders sent.');}
+  finally{body.apiKey=body.pin=body.totp='';btn.disabled=false;}
+ }
+ async function angelClear(){
+  $('angelDisconnect').disabled=true;
+  try{await request('/api/brokers/angel/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});setText('angelAccountState','Local Angel session cleared · no orders sent.');}
+  catch(e){setText('angelAuthStatus','Could not clear local session: '+e.message);}
+  await angelStatus();
+ }
+ $('angelConnect').addEventListener('click',angelVerify);
+ $('angelCheck').addEventListener('click',angelStatus);
+ $('angelDisconnect').addEventListener('click',angelClear);
+ $('angelCopyOwnerId').addEventListener('click',async()=>{
+  if(!user)return;
+  try{await navigator.clipboard.writeText(user.id);setText('angelAuthStatus','OPTIONX user ID copied (not a broker secret). Configure it in Render only.');}
+  catch{setText('angelAuthStatus','Clipboard unavailable. Select and copy the ID manually.');}
+ });
  $('saveBrokerRoutes').addEventListener('click',saveRoutes);
  $('refreshBrokerRoutes').addEventListener('click',routes);
  $('loadDeltaProducts').addEventListener('click',loadProducts);
@@ -140,6 +179,7 @@ export function mountLive({client, onPage}){
  $('liveBrokerDocs').href=DOCS.Zerodha;alignMarket();checks([]);
  return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
     setText('liveGateway','Sign in required');setText('liveBrokerStatus','Not connected');setText('liveOwnerStatus','Not configured');
+    setText('angelOwnerId','—');setText('angelAccountState','Angel not connected');setText('angelAuthStatus','Sign in to OPTIONX first');$('angelConnect').disabled=true;$('angelCheck').disabled=true;$('angelDisconnect').disabled=true;$('angelCopyOwnerId').disabled=true;
     setText('livePreview','No live orders; preview only.');$('brokerRoutesStatus').textContent='Sign in to save broker routing.';$('deltaProductsList').replaceChildren();checks();return;
-   }await Promise.allSettled([status(),routes()]);},choose};
+   }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes()]);await angelStatus();},choose};
 }
