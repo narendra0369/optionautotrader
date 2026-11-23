@@ -1,0 +1,97 @@
+"""OptionX V7 — verified-owner Angel read-only bridge (DISABLED BY DEFAULT).
+
+Only an internally authenticated OPTIONX owner may use the temporary,
+profile-matched RAM session from angel_gateway. No order endpoint or retry.
+Do not enable this bridge before independent review and testing.
+
+Delta private access is intentionally not included: there is no verified
+Delta identity/session or secret vault in the current service.
+"""
+from __future__ import annotations
+
+import time
+from typing import Any
+
+import angel_gateway
+from live_v7.broker_readonly import angel_orders, angel_positions, BrokerSnapshotError
+from live_v7.read_only_transport import (
+    ServerOnlySession, fetch_readonly, ReadOnlyTransportError,
+)
+
+
+class ReadOnlyBridgeError(ValueError):
+    pass
+
+
+def angel_owner_snapshot(
+    *,
+    verified_optionx_user_id: str,
+    resource: str,
+    server_feature_flag_enabled: bool = False,
+) -> dict[str, Any]:
+    """Never call from unverified/browser-owned parameters.
+
+    Caller must first verify the bearer token via Supabase /auth/v1/user,
+    verify personal owner binding, and restrict the request origin. Feature
+    flag defaults to OFF. No local secrets or full broker payloads returned.
+    """
+    if server_feature_flag_enabled is not True:
+        raise ReadOnlyBridgeError("V7 read-only broker inspection is not enabled")
+    if resource not in ("orderbook", "positions"):
+        raise ReadOnlyBridgeError("Only read-only orderbook and positions supported")
+    if not angel_gateway._owner_bound(verified_optionx_user_id):
+        raise ReadOnlyBridgeError("OptionX owner binding failed")
+
+    # Reuse the V6 RAM-only, broker-profile-verified session. Never persist
+    # its API key or JWT to DB, environment dumps or logs.
+    data = angel_gateway._clean_session(verified_optionx_user_id, time.time())
+    if not data:
+        raise ReadOnlyBridgeError("No current verified Angel One session")
+
+    try:
+        broker_session = ServerOnlySession(
+            broker="Angel",
+            owner_id=verified_optionx_user_id,
+            api_key=data["apiKey"],
+            bearer_token=data["jwt"],
+            broker_account_verified=True,  # established by V6 getProfile
+            session_current=True,          # established by V6 expiry check
+        )
+        response = fetch_readonly(
+            session=broker_session,
+            resource=resource,
+            verified_owner_id=verified_optionx_user_id,
+            external_read_authorized_by_server=True,
+        )
+        normalized = angel_orders(response) if resource == "orderbook" else angel_positions(response)
+    except (KeyError, ReadOnlyTransportError, BrokerSnapshotError):
+        raise ReadOnlyBridgeError("Broker inspection unavailable; real orders remain blocked") from None
+
+    return {
+        "broker": "Angel",
+        "resource": resource,
+        "records": normalized,
+        "recordCount": len(normalized),
+        "trustedAccount": "OWNER_PROFILE_MATCHED",
+        "quoteAndContractMasterVerified": False,
+        "orderExecutionEnabled": False,
+        "canSubmitOrder": False,
+        "notice": "Read-only account snapshot. Does not authorize execution.",
+    }
+
+
+def delta_private_access_status() -> dict[str, object]:
+    return {
+        "broker": "Delta",
+        "accountVerified": False,
+        "privateReadEnabled": False,
+        "canSubmitOrder": False,
+        "orderExecutionEnabled": False,
+        "missing": [
+            "OWNER_BOUND_DELTA_CONNECTION",
+            "SECURE_API_SECRET_VAULT",
+            "IP_WHITELIST",
+            "BROKER_PERMISSION_REVIEW",
+            "INTEGRATION_TESTS",
+        ],
+    }
