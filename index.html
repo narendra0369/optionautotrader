@@ -55,6 +55,11 @@
   <div class="panel stat"><div class="stat-label">OWNER BINDING</div><div class="stat-sub" id="liveOwnerStatus">Not configured</div></div>
   <div class="panel stat"><div class="stat-label">REAL ORDER ROUTE</div><div class="stat-value status-off">DISABLED</div><div class="stat-sub">Hard-locked in backend</div></div>
  </div>
+<div class="panel pad" id="v7DevelopmentPanel">
+ <div class="section-bar"><div><h3>V7 Live-Readiness Checklist (development)</h3><p>Review broker permissions, contract verification, persistent risk controls and deployment prerequisites. No order is possible.</p></div><span class="paper-badge">SOURCE ONLY · LIVE OFF</span></div>
+ <p class="hint" id="v7Readiness" role="status">Sign in to view the owner-bound V7 readiness blockers. This development branch is not deployed yet.</p>
+ <p class="hint">Angel profile login is not live trading approval. Static outbound IP registration and real order/recovery testing must be verified separately.</p>
+</div>
 <div class="panel pad" id="angelConnectionPanel">
  <div class="section-bar"><div><h3>Angel One · Secure account verification</h3><p>Personal SmartAPI login + read-only profile check. Credentials are sent once to the secured API, not saved in Supabase or browser storage.</p></div><span class="paper-badge">NO REAL ORDERS</span></div>
  <div class="disclaimer"><b>Before you connect:</b> Verify that you are on https://optionx-200k-strategy-lab.onrender.com. Enter credentials only in this HTTPS form, never in chat or GitHub. The backend must be bound to your OptionX user ID; login sessions are temporary and expire after 15 minutes or server restart. Registered static IP is still required for real orders.</div>
