@@ -26,6 +26,24 @@ TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14
 KRAKEN_INTERVALS = {'1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440}
 YAHOO_INTERVALS = {'1m': ('1m', '5d'), '5m': ('5m', '1mo'), '15m': ('15m', '1mo'), '30m': ('30m', '1mo'), '1h': ('60m', '3mo'), '4h': ('60m', '3mo'), '1d': ('1d', '1y')}
 ALLOWED_ORIGIN = 'https://optionx-200k-strategy-lab.onrender.com'
+V7_STAGING_ORIGIN = 'https://optionx-v7-frontend-test-staging.onrender.com'
+
+
+def _permitted_origin(origin: str) -> bool:
+    """Do not allow staging browser access to the production backend.
+
+    V7 backend staging can opt in explicitly; env setting defaults to OFF
+    and has no real-order implication.
+    """
+    if origin == ALLOWED_ORIGIN:
+        return True
+    if origin == V7_STAGING_ORIGIN:
+        return os.getenv('OPTIONX_V7_STAGING_CORS', '0') == '1'
+    if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
+        host, sep, port = origin.rpartition(':')
+        return bool(sep and port.isdigit() and 0 < int(port) < 65536)
+    return False
+
 _CACHE: dict[tuple[str, str], tuple[float, dict]] = {}
 _CACHE_LOCK = threading.Lock()
 
@@ -116,7 +134,7 @@ class Handler(BaseHTTPRequestHandler):
         encoded = json.dumps(body, separators=(',', ':'), allow_nan=False).encode('utf-8')
         self.send_response(status)
         origin = self.headers.get('Origin', '')
-        if origin == ALLOWED_ORIGIN or origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
+        if _permitted_origin(origin):
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Vary', 'Origin')
         self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -129,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         origin = self.headers.get('Origin', '')
-        if origin == ALLOWED_ORIGIN or origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
+        if _permitted_origin(origin):
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
