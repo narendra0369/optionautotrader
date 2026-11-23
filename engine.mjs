@@ -54,7 +54,7 @@ export function prepare(bars){
   }
   return features;
 }
-function signalFor(bars,f,c,i){
+export function signalFor(bars,f,c,i){
   const v=bars[i].close,prev=bars[i-1].close;let dir=0;
   switch(c.signal){
     case 0: if(f.sFast[i-1]<=f.sSlow[i-1]&&f.sFast[i]>f.sSlow[i])dir=1;else if(f.sFast[i-1]>=f.sSlow[i-1]&&f.sFast[i]<f.sSlow[i])dir=-1;break;

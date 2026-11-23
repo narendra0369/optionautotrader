@@ -18,3 +18,11 @@ assert.equal(completeBars([{time:0,close:1},{time:60_000,close:1}],'1m',120_000)
 assert.ok(readFileSync('app.mjs','utf8').includes('function mountCharts('));
 assert.ok(readFileSync('index.html','utf8').includes('id="page-markets"'));
 console.log('PASS: chart timeframes, completed candle filter, bundled chart controller');
+// Run paper auto tests as part of the existing Render build gate.
+await import('./paper_tests.mjs');
+// Render's static-site build command has an immutable copy allowlist. Copy the
+// versioned paper modules into its dist/ during the test gate, before publishing.
+import {mkdirSync,copyFileSync} from 'node:fs';
+mkdirSync('dist',{recursive:true});
+for(const f of ['paper_engine.mjs','paper_ui.mjs'])copyFileSync(f,'dist/'+f);
+console.log('PASS: paper modules staged for immutable Render static publish command');

@@ -48,3 +48,17 @@ Static hosting over HTTPS; Supabase Auth enabled; row-level security applied via
 - For live, legally authorized 1-minute NIFTY/BANKNIFTY ticks and options premium backtests, a separately contracted/licensed market feed and contract-specific data are still required. Yahoo data is indicative; provider failure is surfaced as an error and never replaced with fictional candles.
 
 Tests: `node tests.mjs`; `python -m unittest -q test_market_api`; `python market_api.py` for read-only local API. No external packages for API. Browser tests may use mocked market-data response; they do not prove an external market data provider is reachable.
+
+## V3 — Auto Paper + Broker Center (23 Nov 2026)
+
+Paper Auto page allows selecting an exact 1–200000 strategy ID, market, timeframe, initial capital, per-entry risk, daily realized loss guard, 1–5 trades/day, cost and slippage assumptions. The same strategy ID can be selected directly from a ranked backtest via **Paper →**. There is one RLS-isolated Supabase state account per user per market, saved with an optimistic concurrency `version` guard; the most recent 100 closed paper trades are kept in that account's JSON state. SQL: `paper_migration.sql`. No broker tokens are kept in a browser or Supabase.
+
+**Critical scope of the simulation:**
+
+- Trading is *automatic only while a signed-in browser tab stays actively open*, with a 45-second polling attempt and catch-up fail-closed for missed bars. Closing/suspending the browser stops it. This is not server-side unattended 24/7 execution.
+- Bar-close replay: a signal is calculated after a bar closes, and an entry at the next bar open is known and accounted for **only once that next bar closes**. It is not a live quote, futures or options fill. A start/restart never replays historic trades.
+- Paper signals use exactly the same 200,000 `configAt` strategy IDs and `signalFor`/`prepare` indicator logic as the backtester. Closing same-bar SL/TP both touched assumes stop first, with gap-down/up stop price worse than stop where appropriate. Configurable costs/slippage are charged; linear units never leverage. Maximum notional is virtual capital. Gap circuit breaker prevents disconnected backfills.
+- Default NIFTY and BANKNIFTY paper capital ₹100,000, entry risk ₹300, daily realized loss guard ₹600, max 2 entries/day; they are *not tradeable index option contracts*. Default BTC paper capital $10,000, entry risk $15, daily realized loss $30 and max 2 entries/day. The loss guard is a rule for entries, not a guaranteed hard loss cap; overnight gaps may exceed it.
+- User actions: Start Paper Auto, Stop Entries, Emergency Paper Flatten at last completed candle close, Sync/Check Signals, Reset while flat, private paper ledger.
+- Broker center links to official Zerodha, Angel One, DhanHQ and Delta API docs. There is **no genuine broker login, OAuth flow or live trading in V3**; live order capability is deliberately hard-disabled until separate, tested secure server adapters, broker credentials via secure provider flows, exchange-authorized contract-level data, postback/WebSocket order reconciliation and recovery tests, broker and statutory compliance, and explicit authorization.
+- The site's Render static build command uses a fixed file-copy allowlist. `node tests.mjs` stages `paper_engine.mjs` and `paper_ui.mjs` in `dist/` before the Render command copies the other frontend files, avoiding any Render service changes. Test command: `node tests.mjs`.
