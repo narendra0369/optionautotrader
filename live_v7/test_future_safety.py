@@ -141,3 +141,6 @@ class V7SafetyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# Import extended offline cases into the explicit V7 regression entrypoint.
+from live_v7.test_extended_offline import DeepOfflineTests
