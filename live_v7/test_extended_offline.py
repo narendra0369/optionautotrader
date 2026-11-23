@@ -12,7 +12,7 @@ from decimal import Decimal
 from live_v7 import (
     angel_master, audit_chain, broker_readonly, contracts, intent_gate,
     kill_switch, order_journal, protective_exit, reconciliation, risk_policy,
-    secret_vault,
+    secret_vault, shadow_recovery,
 )
 
 NOW = datetime(2026, 11, 24, 5, 0, tzinfo=timezone.utc)  # 10:30 IST
@@ -305,6 +305,91 @@ class DeepOfflineTests(unittest.TestCase):
         self.assertTrue(result["readyForLaterIntegrationTests"])
         self.assertFalse(result["canSubmitOrder"])
         self.assertFalse(result["liveExecutionEnabled"])
+
+
+    def _shadow_event(self, kind, event_id, **extra):
+        return {"kind": kind, "event_id": event_id,
+                "as_of": NOW, "source_verified": True, **extra}
+
+    def test_shadow_full_fill_and_stop_ack_no_anomalies(self):
+        events = [
+            self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=75),
+            self._shadow_event("STOP_ACK", "stop_ack_1", protected_quantity=75),
+        ]
+        r = shadow_recovery.replay(
+            events, planned_entry_quantity=75, now=NOW, verified_account=True
+        )
+        self.assertEqual(r["anomalies"], [])
+        self.assertEqual(r["netOpenQuantity"], 75)
+        self.assertTrue(r["newEntriesBlocked"])
+        self.assertFalse(r["canSubmitOrder"])
+
+    def test_shadow_partial_fill_requires_stop_cover(self):
+        events = [
+            self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=25),
+            self._shadow_event("STOP_ACK", "stop_ack_1", protected_quantity=10),
+        ]
+        r = shadow_recovery.replay(
+            events, planned_entry_quantity=75, now=NOW, verified_account=True
+        )
+        self.assertIn("OPEN_POSITION_WITHOUT_FULL_STOP_COVERAGE", r["anomalies"])
+
+    def test_shadow_unknown_entry_blocks_without_reconciliation(self):
+        r = shadow_recovery.replay([
+            self._shadow_event("ENTRY_UNKNOWN", "entry_unk_1"),
+        ], planned_entry_quantity=75, now=NOW, verified_account=True)
+        self.assertIn("UNKNOWN_BROKER_ORDER_OUTCOME", r["anomalies"])
+
+    def test_shadow_duplicate_fill_events_block(self):
+        ev = self._shadow_event("ENTRY_FILL", "fill_00001", cumulative_quantity=25)
+        r = shadow_recovery.replay([ev, ev], planned_entry_quantity=75,
+                                   now=NOW, verified_account=True)
+        self.assertIn("DUPLICATE_EVENT", r["anomalies"])
+        self.assertEqual(r["entryFilledQuantity"], 25)
+
+    def test_shadow_exit_more_than_entry_detects_short_risk(self):
+        events = [
+            self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=25),
+            self._shadow_event("EXIT_FILL", "exit_fill_1", cumulative_quantity=50),
+        ]
+        r = shadow_recovery.replay(
+            events, planned_entry_quantity=75, now=NOW, verified_account=True
+        )
+        self.assertIn("EXIT_REPLAY_OR_POSSIBLE_NAKED_SHORT", r["anomalies"])
+
+    def test_shadow_restart_without_reconcile_blocks(self):
+        r = shadow_recovery.replay([], planned_entry_quantity=75,
+              now=NOW, verified_account=True, restart_occurred=True)
+        self.assertIn("RESTART_REQUIRES_FULL_BROKER_RECONCILIATION",
+                      r["anomalies"])
+
+    def test_shadow_stop_rejection_requires_manual_review(self):
+        events = [
+            self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=75),
+            self._shadow_event("STOP_REJECT", "stop_reject_1"),
+        ]
+        r = shadow_recovery.replay(
+            events, planned_entry_quantity=75, now=NOW, verified_account=True)
+        self.assertIn("BROKER_STOP_REJECTED", r["anomalies"])
+
+    def test_shadow_exit_after_ack_requires_fresh_reconcile(self):
+        events = [
+            self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=75),
+            self._shadow_event("STOP_ACK", "stop_ack_1", protected_quantity=75),
+            self._shadow_event("EXIT_FILL", "exit_fill_1", cumulative_quantity=75),
+        ]
+        r = shadow_recovery.replay(
+            events, planned_entry_quantity=75, now=NOW, verified_account=True)
+        self.assertIn("UNKNOWN_BROKER_ORDER_OUTCOME", r["anomalies"])
+        self.assertIn("POSSIBLE_ORPHAN_STOP_ORDER", r["anomalies"])
+
+    def test_shadow_untrusted_broker_event_never_counts(self):
+        bad = self._shadow_event("ENTRY_FILL", "entry_fill_1", cumulative_quantity=75)
+        bad["source_verified"] = False
+        r = shadow_recovery.replay(
+            [bad], planned_entry_quantity=75, now=NOW, verified_account=True)
+        self.assertIn("BROKER_EVENT_NOT_AUTHENTICATED", r["anomalies"])
+        self.assertEqual(r["entryFilledQuantity"], 0)
 
 
 if __name__ == "__main__":
