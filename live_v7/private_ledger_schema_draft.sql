@@ -106,6 +106,38 @@ CREATE TABLE IF NOT EXISTS optionx_private.broker_position_snapshots (
 CREATE INDEX IF NOT EXISTS optionx_position_owner_time_idx
     ON optionx_private.broker_position_snapshots (owner_id, broker, snapshot_at DESC);
 
+-- Protective exit acknowledgement is an independent broker-observed fact.
+-- NEVER infer that a stop was placed from a local intention to place it.
+CREATE TABLE IF NOT EXISTS optionx_private.position_protection (
+    protection_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    order_intent_id uuid NOT NULL,
+    broker text NOT NULL CHECK(broker IN ('Angel','Delta')),
+    contract_token varchar(64) NOT NULL,
+    confirmed_open_quantity bigint NOT NULL CHECK(confirmed_open_quantity > 0),
+    protected_quantity bigint NOT NULL DEFAULT 0 CHECK(protected_quantity >= 0),
+    stop_order_broker_id varchar(96),
+    target_order_broker_id varchar(96),
+    stop_price numeric(25,10) NOT NULL CHECK(stop_price > 0),
+    target_price numeric(25,10) NOT NULL CHECK(target_price > stop_price),
+    state text NOT NULL DEFAULT 'UNVERIFIED'
+        CHECK(state IN ('UNVERIFIED','STOP_ACKED','STOP_REJECTED',
+                        'PARTIALLY_PROTECTED','UNKNOWN','MANUAL_REVIEW')),
+    verified_from_broker_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    FOREIGN KEY(order_intent_id, owner_id)
+        REFERENCES optionx_private.order_intents(id,owner_id),
+    UNIQUE(owner_id, order_intent_id),
+    CHECK(protected_quantity <= confirmed_open_quantity),
+    CHECK(state <> 'STOP_ACKED' OR
+         (stop_order_broker_id IS NOT NULL AND
+          protected_quantity = confirmed_open_quantity AND
+          verified_from_broker_at IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS optionx_protection_unknown_idx
+    ON optionx_private.position_protection(owner_id, broker, state)
+    WHERE state <> 'STOP_ACKED';
+
 CREATE TABLE IF NOT EXISTS optionx_private.risk_day_snapshot (
     owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     broker text NOT NULL CHECK(broker IN ('Angel','Delta')),
@@ -165,6 +197,7 @@ ALTER TABLE optionx_private.engine_guard ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.order_intents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.order_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.broker_position_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE optionx_private.position_protection ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.risk_day_snapshot ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.audit_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optionx_private.audit_heads ENABLE ROW LEVEL SECURITY;
