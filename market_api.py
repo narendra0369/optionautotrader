@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 from live_gateway import capabilities, status as live_status, user_from_token, preflight, hard_block_order
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
+from live_v7.readiness import status as v7_dev_readiness
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -136,6 +137,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlsplit(self.path)
         if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True, 'liveOrdersEnabled': False})
+        if path.path == '/api/v7/readiness':
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401, {'error': 'Verified OPTIONX session required'})
+            return self._json(200, v7_dev_readiness(angel_status(user)))
         if path.path == '/api/live/capabilities': return self._json(200, capabilities())
         if path.path == '/api/brokers/delta/candles':
             qs = parse_qs(path.query)
