@@ -54,6 +54,22 @@ export function mountLive({client, onPage}){
    msg(data.nextStep||'Broker gateway is not ready.');
   }catch(e){setText('liveGateway','Gateway unavailable');msg('Live gateway error: '+e.message+' · No real orders can be sent.');}
  }
+ async function v7Readiness(){
+  if(!user)return;
+  setText('v7Readiness','Checking V7 development readiness…');
+  try{
+   const data=await request('/api/v7/readiness');
+   const gates=Array.isArray(data.notIndependentlyVerified)?data.notIndependentlyVerified:[];
+   const auth=data.checksConfirmedFromExistingAuth||{};
+   setText('v7Readiness',
+    'Owner binding: '+(auth.ownerBindingMatched?'MATCHED':'PENDING')
+    +' · Angel temporary session: '+(auth.angelProfileSessionActive?'ACTIVE':'NOT ACTIVE')
+    +' · Unverified prerequisites: '+gates.length
+    +' · Real orders: HARD LOCKED · V7 development modules remain UNTESTED.');
+  }catch(e){
+   setText('v7Readiness','V7 development readiness is not deployed or unavailable. Real orders remain LOCKED.');
+  }
+ }
  async function preview(){
   if(busy)return;busy=true;$('liveCheck').disabled=true;checks();msg('Validating order preview against fail-closed gateway…');
   try{
@@ -173,13 +189,14 @@ export function mountLive({client, onPage}){
  $('loadDeltaProducts').addEventListener('click',loadProducts);
  $('liveMarket').addEventListener('change',alignMarket);
  $('liveBroker').addEventListener('change',alignMarket);
- $('liveRefresh').addEventListener('click',status);
+ $('liveRefresh').addEventListener('click',()=>{status();v7Readiness();});
  $('liveCheck').addEventListener('click',preview);
  $('livePaper').addEventListener('click',()=>onPage('paper'));
  $('liveBrokerDocs').href=DOCS.Zerodha;alignMarket();checks([]);
  return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
     setText('liveGateway','Sign in required');setText('liveBrokerStatus','Not connected');setText('liveOwnerStatus','Not configured');
+    setText('v7Readiness','Sign in to inspect development readiness. Real orders remain blocked.');
     setText('angelOwnerId','—');setText('angelAccountState','Angel not connected');setText('angelAuthStatus','Sign in to OPTIONX first');$('angelConnect').disabled=true;$('angelCheck').disabled=true;$('angelDisconnect').disabled=true;$('angelCopyOwnerId').disabled=true;
     setText('livePreview','No live orders; preview only.');$('brokerRoutesStatus').textContent='Sign in to save broker routing.';$('deltaProductsList').replaceChildren();checks();return;
-   }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes()]);await angelStatus();},choose};
+   }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes(),v7Readiness()]);await angelStatus();},choose};
 }
