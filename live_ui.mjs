@@ -1,7 +1,9 @@
 // Broker-ready interface, NOT a live trading terminal. Angel one-time inputs are sent only over authenticated HTTPS to RAM-only verification.
 // Live execution is hard-disabled in the backend, independent of UI state.
 const $ = id => document.getElementById(id);
-const API = 'https://optionx-market-feed.onrender.com';
+const API = (location.hostname === 'optionx-v7-frontend-test-staging.onrender.com')
+  ? 'https://optionx-v7-offline-test-staging.onrender.com'
+  : 'https://optionx-market-feed.onrender.com';
 const DOCS = {Zerodha:'https://kite.trade/docs/connect/v3/',Angel:'https://smartapi.angelone.in/docs',Dhan:'https://dhanhq.co/docs/v2/authentication/',Delta:'https://docs.delta.exchange/'};
 const marketBrokers = {NIFTY:['Angel'],BANKNIFTY:['Angel'],BTC:['Delta']};
 const formats = {INR: new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}),USD:new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2})};
