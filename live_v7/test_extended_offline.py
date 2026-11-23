@@ -232,5 +232,80 @@ class DeepOfflineTests(unittest.TestCase):
         self.assertFalse(r["canSubmitOrder"])
 
 
+    def _trusted_entry(self, *, multiplier="1", verified=True, currency="INR"):
+        import copy
+        c = {
+            "broker": "Angel", "exchange": "NFO", "symbol": "NIFTY30NOV26CE",
+            "token": "123456", "lot_size": 75, "tick_size": "0.05",
+            "verified_at": NOW, "expiry": NOW + timedelta(days=6),
+            "multiplier": multiplier, "multiplier_verified": verified,
+            "settlement_model": "LINEAR_PRICE_DIFFERENCE", "currency": currency,
+        }
+        t = {key: True for key in (
+            "authenticated_owner", "broker_account_matches_owner",
+            "broker_session_current", "broker_api_permission_confirmed",
+            "registered_static_ip_confirmed", "exchange_or_algo_requirements_confirmed",
+            "kill_switch_healthy", "broker_orderbook_reconciled",
+            "no_pending_or_unknown_orders", "no_open_position_in_market",
+            "strategy_approved_by_owner", "market_data_is_exchange_grade",
+            "broker_quote_authenticated", "contract_master_verified",
+            "margin_verified", "exchange_session_verified_for_today",
+        )}
+        t.update({
+            "emergency_stop": False, "intent_id_already_seen": False,
+            "contract": c,
+            "quote": {"as_of": NOW, "ask": "100.00", "bid": "99.50",
+                      "broker": "Angel", "token": "123456",
+                      "source_authenticated": True},
+            "risk_budget": "300", "daily_loss_limit": "600",
+            "today_realized_pnl": "0", "available_margin": "100000",
+            "required_margin": "7500", "today_trade_count": 0,
+            "max_trades_per_day": 2, "risk_currency": "INR",
+        })
+        return t
+
+    def _risk_intent(self):
+        return {
+            "intent_id": "intent_risk_0001", "market": "NIFTY",
+            "broker": "Angel", "action": "ENTRY_BUY",
+            "symbol": "NIFTY30NOV26CE", "quantity": 75,
+            "entry_price": "100.00", "stop_price": "99.00",
+            "target_price": "102.00", "estimated_cost": "1",
+            "slippage_reserve": "1", "strategy_id": 1,
+        }
+
+    def test_multiplier_applied_before_risk_limit(self):
+        trusted = self._trusted_entry(multiplier="5")
+        result = intent_gate.evaluate(self._risk_intent(), trusted, now=NOW)
+        self.assertIn("TRADE_RISK_CAP_EXCEEDED", result["blockedReasons"])
+        self.assertEqual(result["calculated"]["lossIfStoppedEstimate"], "377.00")
+        self.assertFalse(result["canSubmitOrder"])
+
+    def test_no_multiplier_verification_fails_closed(self):
+        trusted = self._trusted_entry(multiplier="1", verified=False)
+        result = intent_gate.evaluate(self._risk_intent(), trusted, now=NOW)
+        self.assertIn("CONTRACT_MULTIPLIER_UNVERIFIED", result["blockedReasons"])
+        self.assertIn("RISK_NOT_COMPUTABLE", result["blockedReasons"])
+        self.assertFalse(result["readyForLaterIntegrationTests"])
+
+    def test_unverified_quote_token_fails_closed(self):
+        trusted = self._trusted_entry()
+        trusted["quote"]["token"] = "wrong-token"
+        result = intent_gate.evaluate(self._risk_intent(), trusted, now=NOW)
+        self.assertIn("QUOTE_CONTRACT_OR_SOURCE_MISMATCH", result["blockedReasons"])
+
+    def test_risk_currency_mismatch_fails_closed(self):
+        trusted = self._trusted_entry(currency="USD")
+        result = intent_gate.evaluate(self._risk_intent(), trusted, now=NOW)
+        self.assertIn("RISK_CURRENCY_MISMATCH_OR_UNVERIFIED", result["blockedReasons"])
+
+    def test_valid_synthetic_case_never_allows_order(self):
+        trusted = self._trusted_entry()
+        result = intent_gate.evaluate(self._risk_intent(), trusted, now=NOW)
+        self.assertTrue(result["readyForLaterIntegrationTests"])
+        self.assertFalse(result["canSubmitOrder"])
+        self.assertFalse(result["liveExecutionEnabled"])
+
+
 if __name__ == "__main__":
     unittest.main()
