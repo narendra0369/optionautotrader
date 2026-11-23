@@ -25,7 +25,7 @@ MAX_TRADES_PER_DAY_HARD = 2
 MARKET_BROKERS = {
     "NIFTY": ("Angel", "NFO"),
     "BANKNIFTY": ("Angel", "NFO"),
-    "BTC": ("Delta", "DERIVATIVES"),
+    "BTC": ("Delta", "DELTA_INDIA"),
 }
 ALLOWED_INTENT_KEYS = {
     "intent_id", "market", "broker", "action", "symbol", "quantity",
@@ -68,7 +68,7 @@ def _result(reasons: list[str], calculated: dict[str, str]) -> dict[str, Any]:
         "readyForLaterIntegrationTests": not reasons,
         "blockedReasons": sorted(set(reasons)) or ["NO_EXECUTION_IMPLEMENTATION"],
         "calculated": calculated,
-        "notice": "This does not validate a broker quote or authorize any real order.",
+        "notice": "The stop-loss estimate is not guaranteed (gap, slippage and fees can exceed it). This does not authorize real orders.",
     }
 
 
@@ -169,6 +169,8 @@ def evaluate(
     if trusted.get("intent_id_already_seen") is not False:
         reasons.append("DUPLICATE_OR_UNKNOWN_INTENT")
 
+    multiplier = None
+    contract = None
     if expected:
         contract = trusted.get("contract")
         if not isinstance(contract, Mapping):
@@ -178,6 +180,20 @@ def evaluate(
                 reasons.append("CONTRACT_EXCHANGE_MISMATCH")
             if contract.get("symbol") != symbol:
                 reasons.append("CONTRACT_SYMBOL_MISMATCH")
+            # These must originate from independently authenticated broker
+            # product details. Never infer a 1x payout for inverse contracts.
+            if contract.get("settlement_model") != "LINEAR_PRICE_DIFFERENCE":
+                reasons.append("PAYOUT_MODEL_UNVERIFIED")
+            if contract.get("multiplier_verified") is not True:
+                reasons.append("CONTRACT_MULTIPLIER_UNVERIFIED")
+            try:
+                m = dec(contract.get("multiplier"), "multiplier")
+                if m <= 0 or m > Decimal("1000000000"):
+                    reasons.append("INVALID_CONTRACT_MULTIPLIER")
+                elif contract.get("multiplier_verified") is True and contract.get("settlement_model") == "LINEAR_PRICE_DIFFERENCE":
+                    multiplier = m
+            except ValueError:
+                reasons.append("INVALID_CONTRACT_MULTIPLIER")
             token = contract.get("token")
             if not isinstance(token, str) or not token:
                 reasons.append("CONTRACT_TOKEN_MISSING")
@@ -213,6 +229,11 @@ def evaluate(
             ask = dec(quote.get("ask"), "ask")
             bid = dec(quote.get("bid"), "bid")
             max_spread_pct = dec(trusted.get("max_spread_pct", "0.02"), "max_spread_pct")
+            if (not isinstance(contract, Mapping)
+                    or quote.get("broker") != broker
+                    or quote.get("token") != contract.get("token")
+                    or quote.get("source_authenticated") is not True):
+                reasons.append("QUOTE_CONTRACT_OR_SOURCE_MISMATCH")
             if bid <= 0 or ask <= 0 or bid > ask or max_spread_pct <= 0:
                 reasons.append("QUOTE_INVALID")
             elif (ask - bid) / ask > max_spread_pct:
@@ -249,10 +270,13 @@ def evaluate(
             reasons.append("DAILY_STOP_ALREADY_BREACHED")
         if required_margin <= 0 or available_margin < required_margin:
             reasons.append("INSUFFICIENT_OR_UNKNOWN_MARGIN")
-        if entry > stop and qty and costs >= 0 and slippage >= 0:
-            loss_if_stopped = (entry - stop) * qty + costs + slippage
+        if entry > stop and qty and costs >= 0 and slippage >= 0 and multiplier is not None:
+            loss_if_stopped = (entry - stop) * qty * multiplier + costs + slippage
             calc["lossIfStoppedEstimate"] = str(loss_if_stopped)
-            calc["rewardBeforeCosts"] = str((target - entry) * qty)
+            calc["rewardBeforeCosts"] = str((target - entry) * qty * multiplier)
+            calc["riskCurrency"] = str(contract.get("currency", "UNVERIFIED"))
+            if trusted.get("risk_currency") != contract.get("currency") or contract.get("currency") not in ("INR", "USD"):
+                reasons.append("RISK_CURRENCY_MISMATCH_OR_UNVERIFIED")
             if loss_if_stopped > risk_budget:
                 reasons.append("TRADE_RISK_CAP_EXCEEDED")
             if today_pnl - loss_if_stopped < -daily_loss_limit:
