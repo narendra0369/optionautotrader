@@ -1,143 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stock Option Auto Trader</title>
-<style>
-:root{--bg:#08111f;--panel:#111f33;--panel2:#0d192b;--line:#263b59;--text:#eaf1fb;--muted:#9db0c9;--green:#39d6a2;--red:#ff737d;--amber:#f4c66b;--blue:#64a9ff}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#07101d,#0d1a2d);color:var(--text);font:15px Arial,sans-serif}
-header{padding:22px max(18px,calc((100% - 1180px)/2));background:#0d192b;border-bottom:1px solid var(--line)}
-h1{margin:0;color:var(--green);font-size:25px}header p{margin:7px 0 0;color:var(--muted)}
-main{max-width:1180px;margin:auto;padding:20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-.card{background:linear-gradient(150deg,#14243b,#101d30);border:1px solid var(--line);border-radius:13px;padding:17px;margin-bottom:15px;box-shadow:0 8px 24px #0002}
-h2{font-size:15px;color:#a9bedb;margin:0 0 15px;letter-spacing:.4px}.metric{font-size:25px;font-weight:700;margin:8px 0}.muted,small{color:var(--muted)}.green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}.blue{color:var(--blue)}
-.pill{display:inline-block;border:1px solid var(--line);border-radius:30px;padding:5px 9px;font-size:12px;color:var(--amber)}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-label{display:block;color:#c1d0e3;font-size:13px;margin:8px 0 5px}
-input,select{width:100%;padding:12px;background:#091525;color:white;border:1px solid #3a5273;border-radius:8px;margin:4px 0 12px}
-button{border:0;border-radius:8px;padding:12px 16px;font-weight:700;background:#159d79;color:white;cursor:pointer}
-button.secondary{background:#344966}button:disabled{opacity:.45;cursor:not-allowed}
-.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}td,th{padding:11px 8px;text-align:left;border-bottom:1px solid var(--line)}th{color:#a9bedb}
-.tablewrap{overflow-x:auto}.notice{padding:12px;border-radius:9px;background:#1d2a3e;color:#d7e4f5;line-height:1.5}
-footer{text-align:center;color:#8192aa;padding:22px}
-</style>
-</head>
-<body>
-<header>
-  <h1>STOCK OPTION AUTO TRADER</h1>
-  <p>Indian Options Trading Dashboard · Paper Trading First</p>
-</header>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d17"><meta name="description" content="OptionX Strategy Lab: NIFTY, BANKNIFTY and Bitcoin OHLC strategy research, 200,000 configurable models and walk-forward backtesting."><title>OptionX · 200K Strategy Lab</title><link rel="stylesheet" href="styles.css"></head><body>
+<div class="app-shell">
+<aside class="sidebar"><a class="brand" href="#dashboard"><span class="emblem">◈</span><span>OPTIONX<small>STRATEGY LAB</small></span></a><div class="menu-caption">WORKSPACE</div><nav aria-label="Main navigation"><button class="nav active" data-page="dashboard">◫ <span>Overview</span></button><button class="nav" data-page="lab">⌘ <span>Strategy Lab</span></button><button class="nav" data-page="results">▤ <span>Rankings & Results</span></button><button class="nav" data-page="account">♙ <span>Account</span></button></nav><div class="side-bottom"><div class="safe-dot">● &nbsp; RESEARCH / PAPER ONLY</div><p>Real broker orders are permanently disabled in this build. No keys, PINs or OTPs required.</p><small>v1.0 · 23 Nov 2026</small></div></aside>
+<div class="content"><header class="topbar"><div><div class="breadcrumbs">OPTIONX / <span id="breadcrumb">Overview</span></div><h1 id="pageHeading">Trading research workspace</h1></div><div class="top-actions"><span class="tag goldtag">200,000 configurations</span><button id="userButton" class="userbutton" title="Account">Sign in</button></div></header>
 <main>
-  <div class="row" style="margin-bottom:15px">
-    <div><span class="pill">PAPER MODE · LIVE ORDERS DISABLED</span></div>
-    <div class="muted" id="clock">--</div>
-  </div>
-
-  <section class="grid">
-    <div class="card"><h2>TRADING MODE</h2><div class="metric green">PAPER ONLY</div><small>No broker orders can be placed from this page.</small></div>
-    <div class="card"><h2>VIRTUAL CAPITAL</h2><div class="metric" id="capital">₹25,000.00</div><small>Demo ledger balance</small></div>
-    <div class="card"><h2>TODAY'S PAPER P&L</h2><div class="metric" id="pnl">₹0.00</div><small>Saved in this browser only</small></div>
-    <div class="card"><h2>BACKEND CONNECTION</h2><div class="metric amber" id="backendStatus">Not connected</div><small>Python engine API is not connected yet</small></div>
-  </section>
-
-  <section class="card">
-    <h2>ORB 18 STRATEGY STATUS</h2>
-    <div class="grid">
-      <div><small>Strategy</small><div class="metric">ORB 18</div></div>
-      <div><small>Opening range</small><div class="metric">18 × 5 min</div></div>
-      <div><small>Spot stop loss</small><div class="metric">ATR(14) × 1.5</div></div>
-      <div><small>Spot target</small><div class="metric">2R</div></div>
-    </div>
-    <div class="notice">Engine status: <b class="amber">Not connected to website</b>. This page is a dashboard only. It does not receive Angel One ticks or start the Python engine. We will connect it through a secured backend in the next phase.</div>
-  </section>
-
-  <section class="card">
-    <h2>RISK MANAGEMENT</h2>
-    <div class="formgrid">
-      <div><label for="risk">Risk per trade (₹)</label><input id="risk" type="number" min="1" value="300"></div>
-      <div><label for="reward">Reward per trade (₹)</label><input id="reward" type="number" min="1" value="600"></div>
-      <div><label for="maxTrades">Maximum trades per day</label><select id="maxTrades"><option>1</option><option selected>2</option></select></div>
-      <div><label for="dailyLoss">Daily loss limit (₹)</label><input id="dailyLoss" type="number" min="1" value="300"></div>
-    </div>
-    <small>Default plan: risk ₹300, target ₹600, maximum 2 trades/day. These are limits, not guaranteed loss caps.</small>
-  </section>
-
-  <section class="card">
-    <h2>MANUAL PAPER TRADE ENTRY</h2>
-    <div class="formgrid">
-      <div><label for="symbol">Instrument</label><select id="symbol"><option>NIFTY</option><option>BANKNIFTY</option></select></div>
-      <div><label for="direction">Position</label><select id="direction"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
-      <div><label for="entry">Entry price (₹)</label><input id="entry" type="number" min="0.05" step="0.05" placeholder="Enter simulated entry"></div>
-      <div><label for="exit">Exit price (₹)</label><input id="exit" type="number" min="0.05" step="0.05" placeholder="Enter simulated exit"></div>
-      <div><label for="qty">Quantity</label><input id="qty" type="number" min="1" step="1" value="1"></div>
-    </div>
-    <button id="saveTrade">Calculate & Save Paper Trade</button>
-    <p id="message" class="amber" role="status"></p>
-  </section>
-
-  <section class="card">
-    <div class="row"><h2 style="margin:0">PAPER TRADE HISTORY</h2><button class="secondary" id="clearHistory">Clear local history</button></div>
-    <div class="tablewrap" style="margin-top:12px"><table>
-      <thead><tr><th>Date/time</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&L</th></tr></thead>
-      <tbody id="history"><tr><td colspan="7" class="muted">No paper trades saved in this browser.</td></tr></tbody>
-    </table></div>
-  </section>
-
-  <section class="card">
-    <h2>UPCOMING INTEGRATION</h2>
-    <div class="grid">
-      <div><span class="pill">Phase 1</span><p>Dashboard UI and local paper-trade ledger</p></div>
-      <div><span class="pill">Phase 2</span><p>Secure Python backend and engine health status</p></div>
-      <div><span class="pill">Phase 3</span><p>Angel One market feed, signals and option LTP</p></div>
-      <div><span class="pill">Phase 4</span><p>Paper execution, logs and safety checks</p></div>
-    </div>
-  </section>
-  <div class="notice"><b>Security:</b> Never enter API key, PIN, TOTP secret, OTP or access token on this GitHub Pages website. Broker credentials must stay on the secured backend. Live trading is not available in this version.</div>
-</main>
-<footer>Stock Option Auto Trader · Dashboard UI v2 · Paper mode only</footer>
-<script>
-const KEY='soa_paper_trades_v2';
-const START_CAPITAL=25000;
-let trades=[];
-try{trades=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(trades))trades=[];}catch(e){trades=[];}
-const money=n=>'₹'+Number(n).toFixed(2);
-function todayKey(){return new Date().toLocaleDateString('en-CA');}
-function render(){
-  const today=trades.filter(t=>t.day===todayKey());
-  const pnl=today.reduce((s,t)=>s+t.pnl,0);
-  const allPnl=trades.reduce((s,t)=>s+t.pnl,0);
-  document.getElementById('pnl').textContent=(pnl<0?'-':'')+money(Math.abs(pnl));
-  document.getElementById('pnl').className='metric '+(pnl>=0?'green':'red');
-  document.getElementById('capital').textContent=money(START_CAPITAL+allPnl);
-  const body=document.getElementById('history');
-  if(!trades.length){body.innerHTML='<tr><td colspan="7" class="muted">No paper trades saved in this browser.</td></tr>';return;}
-  body.innerHTML=trades.slice().reverse().map(t=>`<tr><td>${t.time}</td><td>${t.symbol}</td><td>${t.side}</td><td>${money(t.entry)}</td><td>${money(t.exit)}</td><td>${t.qty}</td><td class="${t.pnl>=0?'green':'red'}">${t.pnl<0?'-':''}${money(Math.abs(t.pnl))}</td></tr>`).join('');
-}
-document.getElementById('saveTrade').addEventListener('click',()=>{
- const symbol=document.getElementById('symbol').value, side=document.getElementById('direction').value;
- const entry=Number(document.getElementById('entry').value), exit=Number(document.getElementById('exit').value), qty=Number(document.getElementById('qty').value);
- const risk=Number(document.getElementById('risk').value), reward=Number(document.getElementById('reward').value), max=Number(document.getElementById('maxTrades').value), dailyLoss=Number(document.getElementById('dailyLoss').value);
- const msg=document.getElementById('message'); msg.textContent='';
- if(![entry,exit,qty,risk,reward,dailyLoss].every(Number.isFinite)||entry<=0||exit<=0||qty<=0||!Number.isInteger(qty)||risk<=0||reward<=0||dailyLoss<=0){msg.textContent='Please enter valid positive prices, whole-number quantity and risk limits.';return;}
- const todays=trades.filter(t=>t.day===todayKey());
- if(todays.length>=max){msg.textContent='Maximum daily paper trades reached.';return;}
- const todaysPnl=todays.reduce((s,t)=>s+t.pnl,0);
- if(todaysPnl<=-dailyLoss){msg.textContent='Daily loss limit already reached. No more paper trades can be saved today.';return;}
- const pnl=(side==='BUY'?exit-entry:entry-exit)*qty;
- if(pnl < -risk || pnl > reward){msg.textContent='Trade P&L exceeds configured per-trade risk/reward. Not saved.';return;}
- if(todaysPnl+pnl < -dailyLoss){msg.textContent='This trade would exceed the daily loss limit. Not saved.';return;}
- const now=new Date();
- trades.push({time:now.toLocaleString(),day:todayKey(),symbol,side,entry,exit,qty,pnl});
- localStorage.setItem(KEY,JSON.stringify(trades)); render(); msg.textContent='Paper trade saved in this browser only.';
-});
-document.getElementById('clearHistory').addEventListener('click',()=>{
- if(!confirm('Delete all paper trade history saved in this browser?'))return;
- trades=[];localStorage.removeItem(KEY);render();document.getElementById('message').textContent='Local paper history cleared.';
-});
-function tickClock(){document.getElementById('clock').textContent=new Date().toLocaleString();}
-tickClock();setInterval(tickClock,1000);render();
-</script>
-</body>
-</html>
+<section id="page-dashboard" class="page active"><div class="hero"><div><div class="eyebrow">QUANT RESEARCH · INDIA & CRYPTO</div><h2>Find the edge.<br><span>Verify the evidence.</span></h2><p>One workspace for NIFTY, BANKNIFTY and Bitcoin. Test rule-based strategies on your own 15-minute OHLC market data, then validate the winners on unseen candles.</p><button class="primary" data-goto="lab">Launch strategy lab ↗</button><button class="subtle" data-goto="results">View rankings</button></div><div class="hero-right"><div class="orb">200K<small>UNIQUE COMBINATIONS</small></div><span class="hero-caveat">No fabricated win rates. Historical data required.</span></div></div>
+<div class="stat-grid"><div class="panel stat"><div class="stat-label">STRATEGY LIBRARY</div><div class="stat-value">2,00,000</div><div class="stat-sub">5 × 5 × 4 × 4 × 5 × 5 × 20</div></div><div class="panel stat"><div class="stat-label">MARKETS</div><div class="stat-value">03</div><div class="stat-sub">NIFTY / BANKNIFTY / BTC</div></div><div class="panel stat"><div class="stat-label">DATA LOADED</div><div class="stat-value" id="dataCount">0 / 3</div><div class="stat-sub">Historical 15-min CSV files</div></div><div class="panel stat"><div class="stat-label">LIVE EXECUTION</div><div class="stat-value status-off">OFF</div><div class="stat-sub">No broker permissions</div></div></div>
+<div class="section-bar"><div><h3>Markets</h3><p>Choose an instrument to upload or test historical candles.</p></div><button class="outline" data-goto="lab">Manage data ↗</button></div><div class="market-grid"><button class="panel market" data-market="NIFTY" data-goto="lab"><div class="market-head"><span class="market-symbol">N</span><span class="market-state" id="state-NIFTY">DATA REQUIRED</span></div><h3>NIFTY 50</h3><p>NSE broad market index · 15-min signals</p><span class="market-link">Open strategy lab →</span></button><button class="panel market" data-market="BANKNIFTY" data-goto="lab"><div class="market-head"><span class="market-symbol">B</span><span class="market-state" id="state-BANKNIFTY">DATA REQUIRED</span></div><h3>BANK NIFTY</h3><p>Banking index · 15-min signals</p><span class="market-link">Open strategy lab →</span></button><button class="panel market" data-market="BTC" data-goto="lab"><div class="market-head"><span class="market-symbol">₿</span><span class="market-state" id="state-BTC">DATA REQUIRED</span></div><h3>BITCOIN</h3><p>BTC/USDT · spot/futures signal research</p><span class="market-link">Open strategy lab →</span></button></div><div class="disclaimer">Important: NIFTY/BANKNIFTY index candles are <b>signal proxies</b>, not historical CE/PE option premiums. For options P&L you must supply contract-level option OHLC, strikes, expiry, lot size and applicable costs in a later execution simulator. Bitcoin spot OHLC is not a leveraged futures P&L model.</div></section>
+<section id="page-lab" class="page"><div class="section-bar"><div><h3>Strategy factory</h3><p>Deterministic enumeration of 200,000 unique configurations.</p></div><span class="tag">70% TRAIN / 30% HOLDOUT</span></div><div class="panel pad"><div class="form-grid"><label>Market<select id="market"><option value="NIFTY">NIFTY 50</option><option value="BANKNIFTY">BANK NIFTY</option><option value="BTC">BITCOIN · BTC/USDT</option></select></label><label>OHLC data source<input id="csvFile" type="file" accept=".csv,text/csv"></label><label>Scan size<select id="scanSize"><option value="2000">Quick research · 2,000</option><option value="20000">Extended · 20,000</option><option value="200000">Exhaustive · all 200,000</option></select></label><label>Training bars per candidate<select id="depth"><option value="1500">Recent 1,500 (fast screen)</option><option value="3000">Recent 3,000</option><option value="0">All available training bars</option></select></label><label>Round-trip cost (basis points)<input type="number" id="fees" min="0" max="500" step="0.5" value="4"></label><label>Timeframe<div class="fake-input">15-minute OHLC only <span>▾</span></div></label></div><p class="hint" id="dataInfo">Upload ascending, continuous 15-minute OHLC CSV with columns time, open, high, low, close. The file stays in your browser; candles are not uploaded to Supabase.</p><div class="actions"><button class="primary" id="scanBtn">Run backtest ▷</button><button class="outline" id="stopBtn" disabled>Stop scan</button><span class="soft" id="scanStatus" role="status">Awaiting historical candles.</span></div><div class="progress-wrap" id="progressWrap" hidden><div class="progress"><div id="progressBar"></div></div><div class="small" id="progressText">0%</div></div></div>
+<div class="section-bar"><div><h3>Combination architecture</h3><p>Every dimension contributes to the tested rule set.</p></div></div><div class="combo-grid"><div class="panel combo"><span>01</span><h4>Entry signals</h4><p>5</p><small>SMA cross, EMA cross, RSI reversal, Donchian, Bollinger</small></div><div class="panel combo"><span>02</span><h4>Filters</h4><p>5</p><small>None, trend, RSI, volatility, momentum</small></div><div class="panel combo"><span>03</span><h4>Exit methods</h4><p>4</p><small>Fixed, trailing, breakeven, timed exit</small></div><div class="panel combo"><span>04</span><h4>ATR stops</h4><p>4</p><small>1×, 1.5×, 2×, 2.5×</small></div><div class="panel combo"><span>05</span><h4>Reward multiples</h4><p>5</p><small>1R to 3R</small></div><div class="panel combo"><span>06</span><h4>Indicator periods</h4><p>5</p><small>8, 13, 21, 34, 55 bars</small></div><div class="panel combo"><span>07</span><h4>Signal buffer</h4><p>20</p><small>0–19 basis points</small></div></div><div class="disclaimer"><b>Methodology:</b> signal confirmed at bar close; entry at the next bar open; stop-first assumption if TP and SL both touched; costs deducted; no leverage or position-size assumptions; equity normalized to R units. Exhaustive scans are computationally intensive, particularly on mobile. Candidate selection is based only on training data; the last 30% of candles remain unseen until validation.</div></section>
+<section id="page-results" class="page"><div class="section-bar"><div><h3>Ranked strategies</h3><p>Ranked by in-sample risk-adjusted score, with holdout results displayed separately.</p></div><div class="actions"><button class="outline" id="downloadCsv">Export results CSV</button><button class="outline" id="downloadJson">Export JSON</button></div></div><div class="panel result-summary"><div><span class="stat-label">MARKET</span><strong id="resultMarket">—</strong></div><div><span class="stat-label">SCREENED</span><strong id="screened">0</strong></div><div><span class="stat-label">PROFITABLE TRAINING CANDIDATES</span><strong id="viable">0</strong></div><div><span class="stat-label">VALIDATION DATE</span><strong id="splitDate">—</strong></div></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Rank</th><th>Strategy</th><th>Train trades</th><th>Train win %</th><th>Train net R</th><th>OOS trades</th><th>OOS win %</th><th>OOS net R</th><th>OOS max DD</th></tr></thead><tbody id="rankingRows"><tr><td colspan="9" class="empty">No verified results yet. Upload 15-minute OHLC CSV and run a backtest.</td></tr></tbody></table></div></div><div class="section-bar"><div><h3>Saved runs</h3><p>Cloud history is private to your signed-in account.</p></div><button class="outline" id="refreshRuns">Refresh</button></div><div class="panel pad"><div id="savedRuns" class="saved-runs">No saved runs found.</div></div></section>
+<section id="page-account" class="page"><div class="panel pad account"><div class="account-icon">◈</div><h3>My research account</h3><p id="accountEmail">Sign in to view your account.</p><div class="actions"><button class="outline" id="signOut">Sign out</button></div><p class="hint">Authentication is provided by Supabase. Each saved run is protected by user-specific row-level security. Uploaded market candles and broker credentials are never stored here.</p></div></section>
+</main><footer>OPTIONX © 2026 · Research only · Historical performance is not a guarantee of future returns.</footer></div></div>
+<div id="authGate" class="auth-backdrop"><form id="authForm" class="auth-box"><div class="brand"><span class="emblem">◈</span><span>OPTIONX<small>STRATEGY LAB</small></span></div><h2>Quant research. Simplified.</h2><p>Sign up once to access the strategy factory and save your ranked backtest reports.</p><div class="auth-toggle"><button type="button" id="modeSignup" class="selected">Create account</button><button type="button" id="modeSignin">Sign in</button></div><label>Email address<input type="email" autocomplete="email" id="email" placeholder="you@example.com" required></label><label>Password<input type="password" autocomplete="new-password" minlength="8" id="password" placeholder="Minimum 8 characters" required></label><button type="submit" class="primary wide" id="authSubmit">Create account</button><p role="status" id="authStatus" class="auth-status">Secure sign-in · Paper research only</p><small>By signing in you accept that strategy results are for research and are not recommendations.</small></form></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" defer></script><script type="module" src="app.mjs"></script></body></html>
