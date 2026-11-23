@@ -19,6 +19,7 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -153,6 +154,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {'error': str(exc)[:160]})
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
+        if path.path in ('/api/v7/angel/orderbook', '/api/v7/angel/positions'):
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401, {'error': 'Verified OPTIONX session required'})
+            # Read-only inspection is disabled until independently approved,
+            # reviewed, and tested. Never derive this from browser payloads.
+            if os.getenv('OPTIONX_V7_READONLY_ANGEL_ENABLED', '0') != '1':
+                return self._json(423, {'error': 'V7_READONLY_ACCOUNT_INSPECTION_DISABLED',
+                                        'liveExecutionEnabled': False})
+            resource = 'orderbook' if path.path.endswith('/orderbook') else 'positions'
+            try:
+                return self._json(200, angel_owner_snapshot(
+                    verified_optionx_user_id=user, resource=resource,
+                    server_feature_flag_enabled=True))
+            except ReadOnlyBridgeError:
+                return self._json(503, {'error': 'Owner-bound read-only broker snapshot unavailable',
+                                        'liveExecutionEnabled': False})
         if path.path == '/api/brokers/angel/status':
             user = user_from_token(self.headers.get('Authorization'))
             return self._json(200, angel_status(user)) if user else self._json(401, {'error': 'Sign in required'})
