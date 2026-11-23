@@ -113,7 +113,15 @@ def contract_from_verified_master(raw: Mapping[str, Any], *, now: datetime) -> C
     multiplier = _decimal(raw.get("multiplier"), "contract multiplier")
     if not (1 <= lot <= 100000 and Decimal("0") < tick <= Decimal("1000000") and multiplier > 0):
         raise ContractVerificationError("Invalid lot/tick/multiplier")
-    expiry = _stamp(raw.get("expires_at"), "expiry")
+    expiry_raw = raw.get("expires_at")
+    if broker == "Delta" and kind == "PERPETUAL":
+        # Perpetual futures usually do not have an expiry. The instrument
+        # master must explicitly say this is a verified perpetual contract.
+        if raw.get("perpetual_confirmed_by_broker") is not True or expiry_raw is not None:
+            raise ContractVerificationError("Perpetual status not verified")
+        expiry = datetime.max.replace(tzinfo=now.tzinfo)
+    else:
+        expiry = _stamp(expiry_raw, "expiry")
     master_at = _stamp(raw.get("master_verified_at"), "master timestamp")
     tradable_at = _stamp(raw.get("trading_status_verified_at"), "trading timestamp")
     if expiry <= now:
