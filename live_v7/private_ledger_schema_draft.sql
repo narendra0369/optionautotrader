@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS optionx_private.order_intents (
     filled_quantity bigint NOT NULL DEFAULT 0 CHECK(filled_quantity >= 0 AND filled_quantity <= quantity),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE(id, owner_id),
     UNIQUE(owner_id, broker, trade_day_ist, idempotency_key),
     UNIQUE(owner_id, broker, external_broker_order_id)
 );
@@ -73,8 +74,10 @@ CREATE INDEX IF NOT EXISTS optionx_intents_unresolved_idx
 
 CREATE TABLE IF NOT EXISTS optionx_private.order_events (
     event_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_intent_id uuid NOT NULL REFERENCES optionx_private.order_intents(id),
+    order_intent_id uuid NOT NULL,
     owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_intent_id, owner_id)
+        REFERENCES optionx_private.order_intents(id, owner_id),
     source_event_key varchar(96) NOT NULL,
     previous_state varchar(40),
     next_state varchar(40) NOT NULL,
