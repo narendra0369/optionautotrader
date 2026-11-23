@@ -6,3 +6,12 @@
 .paper-badge{font-size:11px;font-weight:750;letter-spacing:.5px;background:#302627;border:1px solid #68484d;border-radius:30px;color:#e0aab0;padding:10px 15px}.paper-badge.armed{background:#17322d;color:#71d0ab;border-color:#306958}
 .paper-actions{margin-top:20px;margin-bottom:12px}.paper-actions button{white-space:normal}.danger-outline{color:#f0a8ae;border-color:#6a444a}.paper-stats .stat-value{font-size:clamp(17px,2.4vw,27px);overflow-wrap:anywhere}.paper-live-summary h3{margin-top:0}.paper-live-summary p{color:#c7d2df}.paper-mini{display:flex;flex-wrap:wrap;gap:14px;color:#b6c2d1;font-size:12px}.paper-mini span{padding:8px;background:#111827;border:1px solid #283750;border-radius:8px}.paper-lock{font-size:13px;color:#deb59d}.paper-actions button:disabled{opacity:.47}.paper-live-summary .hint{line-height:1.5}
 @media(max-width:750px){.paper-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.paper-actions button{width:100%}}
+
+/* V4 broker readiness review */
+.live-preview { margin-top:18px;padding:16px;background:#101d30;border:1px solid #6e6252;border-radius:12px;display:grid;gap:8px;color:#cbd6e6 }
+.live-preview strong {font-size:12px;letter-spacing:.06em;color:#f4c66b}
+.live-check-list{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:9px}
+.live-check{padding:12px;border:1px solid #563e46;background:#231c27;border-radius:9px;display:grid;gap:7px}
+.live-check strong{font-size:11px;color:#ff9da6}.live-check span{font-size:12px;line-height:1.5;color:#d1c9d3}
+#page-live .form-grid label {min-width:0}
+#page-live .stat-sub{overflow-wrap:anywhere}

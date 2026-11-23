@@ -62,3 +62,17 @@ Paper Auto page allows selecting an exact 1–200000 strategy ID, market, timefr
 - User actions: Start Paper Auto, Stop Entries, Emergency Paper Flatten at last completed candle close, Sync/Check Signals, Reset while flat, private paper ledger.
 - Broker center links to official Zerodha, Angel One, DhanHQ and Delta API docs. There is **no genuine broker login, OAuth flow or live trading in V3**; live order capability is deliberately hard-disabled until separate, tested secure server adapters, broker credentials via secure provider flows, exchange-authorized contract-level data, postback/WebSocket order reconciliation and recovery tests, broker and statutory compliance, and explicit authorization.
 - The site's Render static build command uses a fixed file-copy allowlist. `node tests.mjs` stages `paper_engine.mjs` and `paper_ui.mjs` in `dist/` before the Render command copies the other frontend files, avoiding any Render service changes. Test command: `node tests.mjs`.
+
+## V4 — Secure Live Broker Preparation (real orders OFF)
+
+- A new `#live` tab offers a broker selection (Zerodha / Angel One / Dhan / Delta), strategy-ID selection, and a read-only LIMIT order readiness preview. There is **no broker OAuth flow implemented yet** and no credential entry on the public page.
+- The backend verifies the signed-in Supabase access token using its Auth `/auth/v1/user` API before returning account-specific readiness status or preview results. The publishable key is safe for browser use; never place a service role key in the frontend.
+- Gateway endpoints:
+  - `GET /api/live/capabilities` (public list of supported broker integrations, no linked credentials)
+  - `GET /api/live/status` (requires valid Supabase access token; returns LOCKED)
+  - `POST /api/live/preflight` (requires valid Supabase access token; returns BLOCKED preview; no broker calls)
+  - `POST /api/live/orders`, `/api/live/arm`, `/api/live/connect` etc. all respond **423 REAL_ORDERS_HARD_LOCKED**; no order execution code exists.
+- 2026 NSE/SEBI retail algo rules require broker-approved retail algo/client-direct API and whitelisted static IP where applicable. A free Render-hosted market feed is **not** a compliant execution host. Use an approved broker-controlled runtime or broker-approved dedicated static-IP infrastructure, account-specific authenticated sessions, instrument-master mapping, broker LTP and margin/risk gates, order reconciliation, duplicate-idempotency handling, outage recovery, audit logging and an independently verified kill switch **before** considering live permission.
+- Public Yahoo index candles and Kraken spot candles are NOT executable NFO option premiums, Indian futures quotes or Delta contract prices. Real fills must never be simulated from those feeds.
+- Build regression: `node tests.mjs && python -m unittest -q test_market_api test_live_gateway`. Current Render static build already runs `node tests.mjs`, which copies the extra frontend modules to `dist/`.
+- Deployment remains on the isolated OptionX branch, preserving `main` and ZELQORIS. No secrets requested or modified.

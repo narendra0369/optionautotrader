@@ -1,5 +1,6 @@
 import {TOTAL,parseCSV} from './engine.mjs';
 import {mountPaper} from './paper_ui.mjs';
+import {mountLive} from './live_ui.mjs';
 // BEGIN EMBEDDED CANDLE VIEWER (bundled because Render static build copies only app.mjs)
 // Self-contained candle chart. Data are verified external OHLC only; never simulated.
 const TIMEFRAMES=['1m','5m','15m','30m','1h','4h','1d'];
@@ -107,7 +108,7 @@ const client=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_PUBLISHABLE,{
 const txt=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const short=(n,d=2)=>n==null||!Number.isFinite(n)?'—':Number(n).toFixed(d);
 const niceDate=t=>t?new Date(t).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—';
-const headings={dashboard:'Trading research workspace',markets:'Market charts & candle explorer',paper:'Paper Auto & Broker Center',lab:'200K strategy factory',results:'Strategy rankings & validation',account:'My account'};
+const headings={dashboard:'Trading research workspace',markets:'Market charts & candle explorer',paper:'Paper Auto',live:'Live Broker Setup · Locked',lab:'200K strategy factory',results:'Strategy rankings & validation',account:'My account'};
 function page(name){
  if(!headings[name])return;
  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+name));
@@ -168,7 +169,7 @@ function displayRun(run){lastRun=run;setText('resultMarket',run.market+(run.time
  for(let i=0;i<run.top.length;i++){
   const row=run.top[i],tr=document.createElement('tr');const c=row.config,t=row.train,v=row.test;
   const data=[`#${i+1}`,configName(c),String(t.trades),t.winRate===null?'—':short(t.winRate,1)+'%',short(t.netR,2)+' R',String(v.trades),v.winRate===null?'—':short(v.winRate,1)+'%'+(v.trades<5?' *':''),short(v.netR,2)+' R',short(v.maxDrawdownR,2)+' R'];
-  data.forEach((val,j)=>{const td=document.createElement('td');td.textContent=val;if((j===4&&t.netR<0)||(j===7&&v.netR<0))td.className='negative';else if(j===7&&v.netR>0)td.className='positive';tr.append(td);});const td=document.createElement('td'),use=document.createElement('button');use.className='outline';use.textContent='Paper →';use.addEventListener('click',()=>paperController.choose(run.market,run.timeframe||'15m',c.id));td.append(use);tr.append(td);body.append(tr);
+  data.forEach((val,j)=>{const td=document.createElement('td');td.textContent=val;if((j===4&&t.netR<0)||(j===7&&v.netR<0))td.className='negative';else if(j===7&&v.netR>0)td.className='positive';tr.append(td);});const td=document.createElement('td'),use=document.createElement('button');use.className='outline';use.textContent='Paper →';use.addEventListener('click',()=>paperController.choose(run.market,run.timeframe||'15m',c.id));td.append(use);const live=document.createElement('button');live.className='outline';live.textContent='Live prep →';live.addEventListener('click',()=>liveController.choose(run.market,c.id));td.append(live);tr.append(td);body.append(tr);
  }
 }
 function exportBlob(name,mime,contents){const blob=new Blob([contents],{type:mime}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -183,6 +184,7 @@ async function loadSaved(){if(!client||!sessionUser)return;const {data,error}=aw
 }
 byId('refreshRuns').addEventListener('click',loadSaved);
 const paperController=mountPaper({client,onPage:page});
+const liveController=mountLive({client,onPage:page});
 const gate=byId('authGate');function authMsg(t){setText('authStatus',t);}
 function mode(m){authMode=m;byId('modeSignup').classList.toggle('selected',m==='signup');byId('modeSignin').classList.toggle('selected',m==='signin');setText('authSubmit',m==='signup'?'Create account':'Sign in');authMsg('Secure login · Paper research only');}
 byId('modeSignup').addEventListener('click',()=>mode('signup'));
@@ -196,7 +198,7 @@ byId('authForm').addEventListener('submit',async e=>{
  }catch(err){authMsg(err.message||'Authentication failed.');}finally{byId('authSubmit').disabled=false;}
 });
 byId('signOut').addEventListener('click',async()=>{if(client)await client.auth.signOut();sessionUser=null;gate.hidden=false;page('dashboard');});
-function setUser(user){sessionUser=user||null;paperController.setUser(sessionUser).catch(e=>setText('paperStatus','Account sync error: '+e.message));gate.hidden=!!user;setText('userButton',user?user.email?.split('@')[0]||'Account':'Sign in');setText('accountEmail',user?.email||'Not signed in');if(user)loadSaved();}
+function setUser(user){sessionUser=user||null;paperController.setUser(sessionUser).catch(e=>setText('paperStatus','Account sync error: '+e.message));liveController.setUser(sessionUser).catch(e=>setText('liveStatus','Gateway status error: '+e.message));gate.hidden=!!user;setText('userButton',user?user.email?.split('@')[0]||'Account':'Sign in');setText('accountEmail',user?.email||'Not signed in');if(user)loadSaved();}
 if(!client){authMsg('Authentication unavailable: could not load Supabase client. Check internet and refresh.');}
 else{client.auth.onAuthStateChange((_event,session)=>setUser(session?.user));const {data,error}=await client.auth.getSession();if(error)authMsg(error.message);else setUser(data.session?.user);}
 const chartController=mountCharts({onResearch:({market,timeframe,bars,source})=>{

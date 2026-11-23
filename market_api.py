@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlsplit, urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
+from live_gateway import capabilities, status as live_status, user_from_token, preflight, hard_block_order
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -127,12 +128,18 @@ class Handler(BaseHTTPRequestHandler):
         if origin == ALLOWED_ORIGIN or origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.send_header('Content-Length', '0'); self.end_headers()
 
     def do_GET(self):
         path = urlsplit(self.path)
-        if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True})
+        if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True, 'liveOrdersEnabled': False})
+        if path.path == '/api/live/capabilities': return self._json(200, capabilities())
+        if path.path == '/api/live/status':
+            user = user_from_token(self.headers.get('Authorization'))
+            return self._json(200, live_status(user)) if user else self._json(401, {'error': 'Valid signed-in session required'})
+        if path.path.startswith('/api/live/'):
+            return self._json(423, hard_block_order())
         if path.path != '/api/candles': return self._json(404, {'error': 'Not found'})
         qs = parse_qs(path.query)
         market = qs.get('market', [''])[0].upper()
@@ -140,6 +147,24 @@ class Handler(BaseHTTPRequestHandler):
         if market not in MARKETS or timeframe not in TIMEFRAMES: return self._json(400, {'error': 'Choose supported market (NIFTY/BANKNIFTY/BTC) and timeframe (1m/5m/15m/30m/1h/4h/1d).'})
         try: return self._json(200, get_candles(market, timeframe))
         except Exception as exc: return self._json(503, {'error': str(exc)[:220], 'market': market, 'timeframe': timeframe, 'fallback': 'Upload OHLC CSV or open the external chart. No synthetic prices are shown.'})
+
+    def do_POST(self):
+        path = urlsplit(self.path).path
+        if path != '/api/live/preflight':
+            # Deliberately no order/margin/cancel POST endpoint. Always fail closed.
+            return self._json(423, hard_block_order()) if path.startswith('/api/live/') else self._json(404, {'error': 'Not found'})
+        user = user_from_token(self.headers.get('Authorization'))
+        if not user:
+            return self._json(401, {'error': 'Valid signed-in session required'})
+        try:
+            n = int(self.headers.get('Content-Length', '0'))
+            if n < 2 or n > 8192:
+                return self._json(413, {'error': 'Invalid preview request size'})
+            body = json.loads(self.rfile.read(n))
+            # Note: preview has no writes, broker connection, or order side effects.
+            return self._json(200, preflight(body, user))
+        except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return self._json(400, {'error': str(exc)[:180]})
 
     def log_message(self, fmt, *args):
         # No request headers, credentials or user identifiers written.

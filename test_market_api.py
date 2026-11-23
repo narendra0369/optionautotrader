@@ -32,3 +32,6 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(group[0]['volume'],6)
 
 if __name__ == '__main__': unittest.main()
+
+# Safe live gateway regression cases also run in Render
+from test_live_gateway import TestLockedGateway
