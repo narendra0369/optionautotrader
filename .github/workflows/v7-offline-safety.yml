@@ -11,6 +11,9 @@ on:
       - 'live_gateway.py'
       - 'test_*.py'
       - '.github/workflows/v7-offline-safety.yml'
+  pull_request:
+    branches:
+      - optionx-200k-strategy-lab-20261123
   workflow_dispatch:
 
 permissions:
@@ -49,7 +52,7 @@ jobs:
           python - <<'PY'
           from live_gateway import hard_block_order
           x = hard_block_order()
-          assert x['liveExecutionEnabled'] is False
-          assert x['canSubmitOrder'] is False
+          assert x['orderSent'] is False
+          assert x['error'] == 'REAL_ORDERS_HARD_LOCKED'
           print('PASS: live-order routes still hard-locked')
           PY
