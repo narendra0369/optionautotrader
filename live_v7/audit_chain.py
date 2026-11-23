@@ -126,9 +126,21 @@ def verify(
             or not DIGEST.fullmatch(raw["digest"])
         ):
             return {"verified": False, "error": "CHAIN_LINK_BROKEN", "position": position}
-        if raw["event_id"] in seen:
+        event_id = raw["event_id"]
+        if not isinstance(event_id, str) or not IDENTIFIER.fullmatch(event_id):
+            return {"verified": False, "error": "INVALID_EVENT_ID", "position": position}
+        if event_id in seen:
             return {"verified": False, "error": "DUPLICATE_EVENT_ID", "position": position}
-        seen.add(raw["event_id"])
+        if (
+            raw["event_type"] not in EVENT_TYPES
+            or raw["broker"] not in BROKERS
+            or raw["market"] not in MARKETS
+            or not isinstance(raw["reason_code"], str)
+            or not CODE.fullmatch(raw["reason_code"])
+            or not isinstance(raw["created_at"], str)
+        ):
+            return {"verified": False, "error": "INVALID_EVENT_DATA", "position": position}
+        seen.add(event_id)
         fields = {k: v for k, v in raw.items() if k != "digest"}
         try:
             candidate = hmac.new(secret, _canonical(fields), hashlib.sha256).hexdigest()
