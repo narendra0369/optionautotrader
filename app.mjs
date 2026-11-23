@@ -91,7 +91,7 @@ byId('authForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!client){authMsg('Authentication library unavailable. Check internet connection and reload.');return;}
  const email=byId('email').value.trim(),password=byId('password').value;
  byId('authSubmit').disabled=true;authMsg('Connecting securely...');
- try{let result;if(authMode==='signup')result=await client.auth.signUp({email,password});else result=await client.auth.signInWithPassword({email,password});if(result.error)throw result.error;
+ try{let result;if(authMode==='signup')result=await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/'}});else result=await client.auth.signInWithPassword({email,password});if(result.error)throw result.error;
   if(authMode==='signup'&&!result.data.session)authMsg('Account created. Check your email to confirm, then return here and sign in.');else authMsg('Signed in successfully.');
  }catch(err){authMsg(err.message||'Authentication failed.');}finally{byId('authSubmit').disabled=false;}
 });
