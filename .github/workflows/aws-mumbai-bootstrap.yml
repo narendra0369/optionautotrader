@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B ops/aws_local_market_feed.py >/tmp/optionx-ci-local.log 2>&1 &
+          python3 -B -m ops.aws_local_market_feed >/tmp/optionx-ci-local.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           sleep 2
