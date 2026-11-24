@@ -37,7 +37,8 @@ const clone=a=>JSON.parse(JSON.stringify(a));
 function newTradeEvent(type, details){return {type,...details};}
 function addHistory(s,event){s.trades=[event,...s.trades].slice(0,100);}
 function newDay(s,t){const key=day(t);if(s.day!==key){s.day=key;s.countToday=0;s.pnlToday=0;}}
-function allowed(s,c){return s.countToday<c.maxTrades&&s.pnlToday>-c.dailyLoss&&s.cash>0;}
+// Even legacy saved 3-5 settings cannot bypass the user's global 2-entry cap.
+function allowed(s,c){return s.countToday<Math.min(2,c.maxTrades)&&s.pnlToday>-c.dailyLoss&&s.cash>0;}
 function stopOrTarget(b,pos){const dir=pos.dir;
  if(dir===1&&b.low<=pos.stop)return {price:Math.min(pos.stop,b.open),reason:'STOP'};
  if(dir===-1&&b.high>=pos.stop)return {price:Math.max(pos.stop,b.open),reason:'STOP'};
@@ -133,6 +134,13 @@ export function stepPaper(account,bars,now=Date.now()){
   s.lastBarTime=b.time;
  }
  if(!s.pending&&!s.position&&s.status!=='Daily loss guard hit · no new entries')s.status='Armed · waiting for signals';
+ // Once 2 entries have opened, never accept a third regardless of SL or TP.
+ // Continue managing an existing paper position until its exit is simulated.
+ if(s.countToday>=2){
+  s.pending=null;
+  if(s.position) s.status='2/2 daily entries used · managing open paper position';
+  else {s.armed=false;s.status='2/2 entries used · paper auto stopped for India day';}
+ }
  s.updatedAt=new Date(now).toISOString();
  return {account:a,changed:true,reason:'Processed '+next.length+' completed candle(s)'};
 }
