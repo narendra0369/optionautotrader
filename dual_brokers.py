@@ -30,6 +30,13 @@ BROKER_PROFILES = [
         'connection': 'NOT_CONNECTED', 'credentialsAccepted': False,
     },
     {
+        'id': 'Stoxkart', 'name': 'Stoxkart Superr API',
+        'markets': ['NIFTY', 'BANKNIFTY'], 'derivatives': ['CE', 'PE', 'FUT'],
+        'docs': 'https://developers.stoxkart.com/api-documentation/login',
+        'approval': 'Broker-app ownership, authenticated NFO contracts, exchange approval for unattended automated orders',
+        'connection': 'NOT_CONNECTED', 'credentialsAccepted': False,
+    },
+    {
         'id': 'Delta', 'name': 'Delta Exchange India',
         'markets': ['BTC'], 'derivatives': ['PERPETUAL', 'FUT', 'CALL', 'PUT'],
         'docs': 'https://docs.delta.exchange/',
