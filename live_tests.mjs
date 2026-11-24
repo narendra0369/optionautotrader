@@ -60,3 +60,13 @@ assert.ok(readFileSync('live_v7/angel_marketdata.py','utf8').includes('"interval
 assert.ok(!ui.includes("'/api/live/place-order"));
 console.log('PASS: verified NFO 15m research OHLC export only; no automatic broker order routes');
 
+
+assert.ok(html.includes('id="autoAtmPanel"'));
+assert.ok(html.includes('id="autoAtmContract"'));
+assert.ok(html.includes('id="autoAtmExits"'));
+assert.ok(ui.includes("'/api/v7/angel/auto-atm?"));
+assert.ok(ui.includes("result.dailyEntryCountVerified!==false"));
+assert.ok(ui.includes("result.fillETASeconds!==null"));
+assert.ok(api.includes("OPTIONX_V7_AUTO_ATM_READONLY_ENABLED"));
+assert.ok(api.includes("canSubmitOrder"));
+console.log('PASS: Auto ATM 15m broker research is owner-only, no manual premium/Greek fields, no live fills or 3rd entry authorizations');
