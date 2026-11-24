@@ -9,5 +9,5 @@ self.addEventListener('fetch',event=>{
     if(response.ok&&response.type==='basic'){
       const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(req,copy)).catch(()=>{});
     }return response;
-  }).catch(()=>caches.match(req).then(match=>match||Response.error())));
+  }).catch(()=>caches.match(req,{ignoreSearch:true}).then(match=>match||Response.error())));
 });
