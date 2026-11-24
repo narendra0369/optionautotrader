@@ -44,4 +44,12 @@ assert.ok(ui.includes('data.liveExecutionEnabled!==false||data.orderExecutionEna
 assert.ok(readFileSync('live_v7/read_only_bridge.py','utf8').includes('"liveExecutionEnabled": False')) ;
 assert.ok(readFileSync('live_v7/read_only_bridge.py','utf8').includes('"snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2"'));
 console.log('PASS: client and server enforce matching versioned Angel snapshot contract; no unsafe fallback');
+assert.ok(html.includes('id="angelNfoLoad"')&&html.includes('id="angelNfoQuote"'));
+assert.ok(html.includes('id="angelNfoRows"')&&html.includes('id="angelNfoPrice"'));
+assert.ok(ui.includes("'/api/v7/angel/contracts?'") && ui.includes("'/api/v7/angel/ltp?token='"));
+assert.ok(ui.includes("data.executionPriceVerified!==false"));
+assert.ok(api.includes("OPTIONX_V7_MARKETDATA_ANGEL_ENABLED"));
+assert.ok(api.includes("angel_quote_ltp(user,params.get('token',[''])[0])"));
+assert.ok(readFileSync('live_v7/angel_marketdata.py','utf8').includes('"canSubmitOrder":False'));
+console.log('PASS: staging-only authenticated Angel contract and on-demand LTP pilot; all order routes locked');
 
