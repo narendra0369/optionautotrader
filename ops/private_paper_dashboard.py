@@ -73,6 +73,33 @@ def _short(value, maximum=80):
     return value[:maximum]
 
 
+def paper_observation_health(snapshot: dict | None, *, now=None) -> dict:
+    """Audit ONLY the age of a *local* indicative price observation.
+
+    An observed LTP is never proof of execution-grade freshness or an
+    exchange native SL. Any open position with unknown/stale input is
+    explicitly marked UNMONITORED, not implicitly healthy.
+    """
+    now = now or datetime.now(timezone.utc)
+    position = (snapshot or {}).get("openPosition")
+    if not isinstance(position, dict):
+        return {"state": "NO_POSITION", "ageSeconds": None, "protectedByBroker": False,
+                "continuousMonitoringVerified": False}
+    observed = position.get("last_observed_utc")
+    try:
+        stamp = datetime.fromisoformat(observed)
+        if stamp.tzinfo is None or stamp.utcoffset() is None:
+            raise ValueError("missing timezone")
+        seconds = (now - stamp.astimezone(timezone.utc)).total_seconds()
+        if seconds < 0 or seconds > 120:
+            raise ValueError("stale or future observation")
+    except (TypeError, ValueError):
+        return {"state": "STALE_OR_UNKNOWN_LOCAL_LTP", "ageSeconds": None,
+                "protectedByBroker": False, "continuousMonitoringVerified": False}
+    return {"state": "RECENT_LOCAL_LTP_ONLY", "ageSeconds": int(seconds),
+            "protectedByBroker": False, "continuousMonitoringVerified": False}
+
+
 def make_view(snapshot: dict | None = None, *, error: str | None = None, now=None) -> str:
     """Server-rendered HTML; escapes broker symbols and ledger fields."""
     now = now or datetime.now(timezone.utc)
@@ -89,6 +116,19 @@ def make_view(snapshot: dict | None = None, *, error: str | None = None, now=Non
         pnl_class = ""
     count = str(snapshot.get("tradesToday", "0")) if not error else "—"
     max_trades = str(snapshot.get("maxTradesPerDay", "2"))
+    observation = paper_observation_health(snapshot, now=now)
+    observer_warning = ""
+    if observation["state"] == "STALE_OR_UNKNOWN_LOCAL_LTP":
+        observer_warning = (
+            '<div class="caution">PAPER POSITION NOT MONITORED: The last local LTP '
+            'observation is over 120 seconds old or unverified. No real stop '
+            'or automatic protective exit is active. Check the operator SSH session.</div>'
+        )
+    elif observation["state"] == "RECENT_LOCAL_LTP_ONLY":
+        observer_warning = (
+            '<div class="caution">Recent local LTP observation only. '
+            'Continuous monitoring and broker protective stops remain unverified.</div>'
+        )
     position = snapshot.get("openPosition")
     position_html = ('<p class="subtitle">No open virtual position. There are no real broker holdings here.</p>')
     if isinstance(position, dict):
@@ -135,6 +175,7 @@ def make_view(snapshot: dict | None = None, *, error: str | None = None, now=Non
 <h1>Paper Trading Dashboard</h1>
 <p class="subtitle">AWS Mumbai · Angel One research · {_escape(current)} · refreshes every 15 seconds</p>
 {error_notice}
+{observer_warning}
 <div class="grid">
 <div class="card"><div class="label">Initial Virtual Capital</div><div class="value">{capital}</div></div>
 <div class="card"><div class="label">Realized Virtual Equity*</div><div class="value gold">{equity}</div></div>
@@ -202,6 +243,7 @@ def make_handler(database_path):
                     "tradesToday": s["tradesToday"],
                     "maxTradesPerDay": s["maxTradesPerDay"],
                     "openVirtualPosition": s["openPosition"],
+                    "paperObservationHealth": paper_observation_health(s),
                     "recentVirtualTrades": s["recentTrades"],
                     "realOrdersEnabled": False,
                 }
