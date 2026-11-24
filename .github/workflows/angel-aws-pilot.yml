@@ -30,13 +30,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Compile read-only AWS pilot
-        run: python3 -m compileall -q ops/angel_ssh_readonly_pilot.py ops/test_angel_ssh_readonly_pilot.py ops/paper_ledger_v1.py ops/test_paper_ledger_v1.py ops/optionx_batch_gatecheck.py ops/test_optionx_batch_gatecheck.py live_gateway.py angel_gateway.py live_v7
+        run: python3 -m compileall -q ops/angel_ssh_readonly_pilot.py ops/test_angel_ssh_readonly_pilot.py ops/paper_ledger_v1.py ops/test_paper_ledger_v1.py ops/optionx_batch_gatecheck.py ops/test_optionx_batch_gatecheck.py ops/angel_paper_foreground_monitor.py ops/test_angel_paper_foreground_monitor.py live_gateway.py angel_gateway.py live_v7
       - name: Existing API and no-orders regression suite
         run: python3 -m unittest -q live_v7.test_future_safety test_market_api
       - name: AWS static IP and Angel SSH pilot tests (fully mocked)
-        run: python3 -m unittest -q ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck
+        run: python3 -m unittest -q ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck ops.test_angel_paper_foreground_monitor
       - name: Combined AWS full offline gate suites (broker calls always mocked)
-        run: python3 -m unittest -q live_v7.test_future_safety test_market_api test_angel_gateway test_live_gateway live_v7.test_angel_marketdata live_v7.test_angel_readonly_http live_v7.test_angel_snapshot_contract live_v7.test_extended_offline ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck
+        run: python3 -m unittest -q live_v7.test_future_safety test_market_api test_angel_gateway test_live_gateway live_v7.test_angel_marketdata live_v7.test_angel_readonly_http live_v7.test_angel_snapshot_contract live_v7.test_extended_offline ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck ops.test_angel_paper_foreground_monitor
       - name: Refuse real-order activation
         run: |
           python3 - <<'PY'
