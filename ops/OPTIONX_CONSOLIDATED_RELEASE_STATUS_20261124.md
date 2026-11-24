@@ -9,9 +9,10 @@
 - AWS combined batch reported 243 Python offline regression tests PASS. These were not broker orders or live execution tests.
 - User's AWS paper SQLite account initialized with INR 500000 initial virtual capital, max 12 illustrative stepped lots, max 2 entries per IST day, no open position, no real broker orders.
 - User's foreground virtual quote-monitor source module was installed in AWS under restricted optionx user and its setup and status printed PASS. No actual virtual entry or repeated polling session has been reported yet.
-- User has begun running a V4 one-shot bundle for paper SQLite integrity/backup and a localhost-only premium dashboard. **Its real AWS result has NOT YET been provided**. Never assume V4 deployed successfully.
+- User's V4 actual AWS output has now confirmed PASS: private paper SQLite quick_check and schema/account integrity, owner-only consistent SQLite backup created in /var/lib/optionx-paper/backups/, non-overwriting dashboard and recovery modules staged under the restricted optionx user, AWS egress and locked order endpoint rechecked, local SSH-tunneled dashboard responded on Windows 127.0.0.1:18751. Virtual equity INR 500000, 0 trades, 0 open positions, 12 max stepped virtual lots. Real-money orders remained OFF.
 
 ## Additional completed source-only work on isolated GitHub branch
+- ops/angel_private_account_readonly_audit.py: owner-verified, private-SSH, GET-only account position/orderbook COUNTS audit, with short-lived session and no raw account data printed. **SOURCE ONLY; actual AWS broker-private read has NOT YET BEEN RUN.**
 - ops/synthetic_live_lifecycle_matrix.py: 21 deterministic, OFFLINE, no-broker-event-fills/no-orders scenarios for stop ACK/rejection, fill and missing protection, stale broker evidence, unknown outcome, duplicate, partial fill, cancel race, restart and reconciliation. Every scenario must remain blocked for live order submission.
 - ops/optionx_release_gate_matrix.py: fail-closed factual release readiness report, explicitly distinguishing runtime verification from source/tests. This always reports live trading NOT approved and private production ledger/auth/TLS/order lifecycle not complete.
 - ops/https_mobile_access_gate.py: prospective owner/TLS/origin/rate-limit/GET-only policy; **no actual production HTTPS gateway or Android app** is deployed or enabled.
