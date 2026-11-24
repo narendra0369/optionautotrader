@@ -9,6 +9,7 @@ const marketBrokers = {NIFTY:['Angel','Stoxkart'],BANKNIFTY:['Angel','Stoxkart']
 const formats = {INR: new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}),USD:new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2})};
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
+ let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
  const msg=t=>{$('liveStatus').textContent=t};
  const setText=(id,t)=>{$(id).textContent=t};
  function alignMarket(){
@@ -41,7 +42,7 @@ export function mountLive({client, onPage}){
  }
  async function request(path, options={}){
   const access=await token();
-  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:15000);
+  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:path.startsWith('/api/v7/angel/contracts')?45000:20000);
   try{
    const res=await fetch(API+path,{...options,headers:{Authorization:'Bearer '+access,...(options.headers||{})},signal:controller.signal,mode:'cors',cache:'no-store'});
    const data=await res.json();
@@ -158,6 +159,86 @@ export function mountLive({client, onPage}){
   }catch(e){$('deltaProductsStatus').textContent='Delta public feed unavailable: '+e.message+' · No contracts fabricated.';}
   finally{loadingProducts=false;btn.disabled=!user;}
  }
+ function clearAngelMarketData(message='Market-data preview cleared. No orders or quotes submitted for execution.'){
+  selectedAngelContract=null;
+  $('angelNfoRows').replaceChildren();
+  setText('angelNfoPrice','No verified contract selected or quote received.');
+  setText('angelNfoStatus',message);
+  $('angelNfoQuote').disabled=true;
+ }
+ async function loadAngelNfoContracts(){
+  if(!user||angelNfoLoading)return;
+  if(location.hostname!=='optionx-v7-frontend-test-staging.onrender.com')return;
+  angelNfoLoading=true;$('angelNfoLoad').disabled=true;
+  clearAngelMarketData('Loading current NFO instrument master from official Angel One source…');
+  const market=$('angelNfoMarket').value,side=$('angelNfoSide').value;
+  const strike=$('angelNfoStrike').value.trim();
+  if(strike&&(!/^\d{3,6}(?:\.\d{1,2})?$/.test(strike)||Number(strike)<=100||Number(strike)>=500000)){
+   setText('angelNfoStatus','Enter a valid optional approximate strike between 100 and 500000.');
+   angelNfoLoading=false;$('angelNfoLoad').disabled=false;return;
+  }
+  const params=new URLSearchParams({market,side});
+  if(side!=='FUT'&&strike)params.set('strike',strike);
+  try{
+   const data=await request('/api/v7/angel/contracts?'+params.toString());
+   if(data.broker!=='Angel'||data.market!==market||data.side!==side||
+      !Array.isArray(data.contracts)||data.contracts.length>30||
+      data.liveExecutionEnabled!==false||data.orderExecutionEnabled!==false||data.canSubmitOrder!==false)
+    throw Error('NFO_CONTRACT_METADATA_UNTRUSTED');
+   const rows=$('angelNfoRows');
+   for(const c of data.contracts){
+    if(c.market!==market||c.side!==side||c.exchange!=='NFO'||
+       typeof c.symbol!=='string'||!/^\d{2,14}$/.test(c.token)||
+       typeof c.expiry!=='string'||!Number.isInteger(c.lotSize)||c.lotSize<1||
+       !(Number(c.tickSize)>0))throw Error('NFO_CONTRACT_DATA_FORMAT');
+    const line=document.createElement('div');line.className='delta-product';
+    const name=document.createElement('div');
+    const title=document.createElement('strong');title.textContent=c.symbol;
+    const desc=document.createElement('small');
+    desc.textContent='Expiry '+c.expiry+' · '+(side==='FUT'?'FUT':'Strike ₹'+Number(c.strike).toLocaleString('en-IN'))+
+      ' · Lot '+c.lotSize+' · Tick ₹'+c.tickSize;
+    name.append(title,desc);
+    const select=document.createElement('button');select.type='button';
+    select.className='outline';select.textContent='Select for LTP';
+    select.addEventListener('click',()=>{
+      selectedAngelContract={...c};$('angelNfoQuote').disabled=false;
+      setText('angelNfoPrice','Selected '+c.symbol+' · Exchange NFO · No quote fetched yet.');
+      setText('angelNfoStatus','Contract selected from verified master. LTP is indicative only; click Fetch selected contract LTP.');
+    });
+    line.append(name,select);rows.append(line);
+   }
+   setText('angelNfoStatus',data.contracts.length+' current '+market+' '+side+
+     ' contracts shown (earliest expiry '+data.expiry+'). Official master as of '+data.masterAsOf+
+     '. Contract token/lot/tick are metadata only.');
+  }catch(e){
+   clearAngelMarketData('NFO Contract lookup unavailable: '+String(e.message||'Unknown')+'. No values fabricated or orders sent.');
+  }finally{angelNfoLoading=false;await angelStatus();}
+ }
+ async function readAngelNfoLtp(){
+  if(!user||!selectedAngelContract||angelQuoteLoading)return;
+  const contract={...selectedAngelContract};
+  angelQuoteLoading=true;$('angelNfoQuote').disabled=true;
+  setText('angelNfoPrice','Reading broker LTP for '+contract.symbol+' (NO ORDER)…');
+  try{
+   const data=await request('/api/v7/angel/ltp?token='+encodeURIComponent(contract.token));
+   if(data.broker!=='Angel'||!data.contract||
+      data.contract.token!==contract.token||data.contract.symbol!==contract.symbol||
+      data.contract.exchange!=='NFO'||data.liveExecutionEnabled!==false||
+      data.orderExecutionEnabled!==false||data.canSubmitOrder!==false||
+      data.executionPriceVerified!==false||data.quoteFreshnessVerified!==false||
+      !Number.isFinite(data.ltp)||data.ltp<=0)
+    throw Error('ANGEL_LTP_RESPONSE_UNTRUSTED');
+   setText('angelNfoPrice',contract.symbol+' · LTP ₹'+
+     Number(data.ltp).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+
+     ' · Observed '+data.observedAt+
+     ' · No exchange timestamp verification; not executable or a Paper Auto price feed.');
+  }catch(e){
+   setText('angelNfoPrice','LTP unavailable: '+String(e.message||'Unknown')+
+     '. No synthetic price or real order.');
+  }finally{
+   angelQuoteLoading=false;await angelStatus();
+  }
+ }
  function clearAngelSnapshot(message='Read-only snapshot cleared. No broker orders sent.'){
   $('angelReadonlyRows').replaceChildren();
   setText('angelReadonlyStatus',message);
@@ -225,10 +306,17 @@ export function mountLive({client, onPage}){
    const canInspect=s.ownerMatch===true&&s.connected===true&&location.hostname==='optionx-v7-frontend-test-staging.onrender.com';
    $('angelReadonlyPositions').disabled=!canInspect;
    $('angelReadonlyOrders').disabled=!canInspect;
-   if(!s.connected)clearAngelSnapshot('Angel session is inactive or expired. Re-verify to request a fresh read-only snapshot.');
+   $('angelNfoLoad').disabled=!canInspect||angelNfoLoading;
+   $('angelNfoQuote').disabled=!canInspect||!selectedAngelContract||angelQuoteLoading;
+   if(!s.connected){
+    clearAngelSnapshot('Angel session is inactive or expired. Re-verify to request a fresh read-only snapshot.');
+    clearAngelMarketData('Angel session expired. Contract selection and LTP preview cleared.');
+   }
   }catch(e){setText('angelAuthStatus','Angel session status unavailable: '+e.message);$('angelConnect').disabled=true;
    $('angelReadonlyPositions').disabled=true;$('angelReadonlyOrders').disabled=true;
-   clearAngelSnapshot('Broker session could not be verified. Snapshot cleared.');}
+   clearAngelSnapshot('Broker session could not be verified. Snapshot cleared.');
+   clearAngelMarketData('Broker session not verified. Market-data preview cleared.');
+   $('angelNfoLoad').disabled=true;}
  }
  async function angelVerify(){
   if(!user)return;
@@ -246,6 +334,7 @@ export function mountLive({client, onPage}){
  }
  async function angelClear(){
   $('angelDisconnect').disabled=true;clearAngelSnapshot('Angel session cleared. Read-only snapshot removed.');
+  clearAngelMarketData('Angel session cleared. All market-data previews removed.');
   try{await request('/api/brokers/angel/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});setText('angelAccountState','Local Angel session cleared · no orders sent.');}
   catch(e){setText('angelAuthStatus','Could not clear local session: '+e.message);}
   await angelStatus();
@@ -330,6 +419,11 @@ export function mountLive({client, onPage}){
  $('stoxkartDisconnect').addEventListener('click',stoxkartClear);
  $('routeNifty').addEventListener('change',()=>{if($('liveMarket').value==='NIFTY')alignMarket();});
  $('routeBankNifty').addEventListener('change',()=>{if($('liveMarket').value==='BANKNIFTY')alignMarket();});
+ $('angelNfoLoad').addEventListener('click',loadAngelNfoContracts);
+ $('angelNfoQuote').addEventListener('click',readAngelNfoLtp);
+ $('angelNfoClear').addEventListener('click',()=>clearAngelMarketData());
+ $('angelNfoSide').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected side.'));
+ $('angelNfoMarket').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected market.'));
  $('angelReadonlyPositions').addEventListener('click',()=>angelReadonly('positions'));
  $('angelReadonlyOrders').addEventListener('click',()=>angelReadonly('orderbook'));
  $('angelReadonlyClear').addEventListener('click',()=>clearAngelSnapshot());
@@ -360,6 +454,7 @@ export function mountLive({client, onPage}){
     for(const id of ['stoxkartStart','stoxkartCheck','stoxkartDisconnect','stoxkartPositions'])$(id).disabled=true;
     setText('angelOwnerId','—');setText('angelAccountState','Angel not connected');setText('angelAuthStatus','Sign in to OPTIONX first');$('angelConnect').disabled=true;$('angelCheck').disabled=true;$('angelDisconnect').disabled=true;$('angelCopyOwnerId').disabled=true;
     $('angelReadonlyPositions').disabled=true;$('angelReadonlyOrders').disabled=true;clearAngelSnapshot('Sign in required. No broker snapshot is retained.');
+    $('angelNfoLoad').disabled=true;clearAngelMarketData('Sign in required. No market-data selection retained.');
     setText('livePreview','No live orders; preview only.');$('brokerRoutesStatus').textContent='Sign in to save broker routing.';$('deltaProductsList').replaceChildren();checks();return;
    }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes(),v7Readiness()]);await angelStatus();await stoxkartResume();await stoxkartStatus();},choose};
 }
