@@ -47,7 +47,7 @@
  <p class="hint">Before live enablement: broker OAuth or secure credential exchange, contract-level prices &amp; lot sizes, paper-to-live validation, broker order/position reconciliation, exchange hours, RMS and regulatory checks, daily stop, kill switch and explicit separate approval. Current site deliberately cannot send real orders.</p></div>
  </section>
 <section id="page-live" class="page">
- <div class="section-bar"><div><h3>Angel One + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
+ <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
  <div class="stat-grid">
   <div class="panel stat"><div class="stat-label">SECURE GATEWAY</div><div class="stat-sub" id="liveGateway">Checking…</div></div>
@@ -74,10 +74,29 @@
  <p class="hint" id="angelAccountState">Angel One not linked · Live orders are disabled.</p>
  <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. In Render → <b>optionx-market-feed</b> → Environment, set <code>OPTIONX_OWNER_USER_ID</code> to that ID (no PIN or secret in this setting). Wait until the backend redeploys, then verify the login. This private verification is not a broker trading authorization.</div>
 </div>
+ <div class="panel pad" id="stoxkartConnectionPanel">
+ <div class="section-bar"><div><h3>Stoxkart · Superr API Login</h3><p>Free API access advertised by broker; standard trade charges still apply. Broker login and TOTP happen on Stoxkart's own website.</p></div><span class="paper-badge">READ ONLY · NO ORDERS</span></div>
+ <div class="disclaimer"><b>For your first Stoxkart connection:</b> Create an API app at <a href="https://superrapi.stoxkart.com/" target="_blank" rel="noopener noreferrer">Stoxkart Superr API Portal</a>. Set its registered redirect URL to <code>https://optionx-v7-frontend-test-staging.onrender.com/stoxkart_callback.html</code>. Enter your app API key/secret and intended Stoxkart client ID here once. This site never asks for your Stoxkart password/TOTP; complete those at the official broker website. Browser session and server credentials are short-lived; no keys are stored in Supabase.</div>
+ <div class="form-grid">
+  <label>Stoxkart API Key<input id="stoxkartApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" placeholder="API app key · one-time entry"></label>
+  <label>Stoxkart API Secret<input id="stoxkartApiSecret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="256" placeholder="App secret · sent only to temporary backend memory"></label>
+  <label>Expected Stoxkart Client ID<input id="stoxkartClient" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="Broker client code (not password)"></label>
+ </div>
+ <div class="actions">
+  <button type="button" class="primary" id="stoxkartStart" disabled>Login at Stoxkart (read-only)</button>
+  <button type="button" class="outline" id="stoxkartCheck" disabled>Check Stoxkart session</button>
+  <button type="button" class="outline" id="stoxkartPositions" disabled>View NFO positions (read-only)</button>
+  <button type="button" class="outline" id="stoxkartDisconnect" disabled>Clear Stoxkart session</button>
+ </div>
+ <p class="hint" id="stoxkartAuthStatus" role="status">Sign in to OptionX to prepare the verified owner-only Stoxkart login. No real orders are enabled.</p>
+ <p class="hint" id="stoxkartAccountState">Stoxkart not connected · Real Money Auto Trading OFF</p>
+ <p class="hint" id="stoxkartPositionsState">NIFTY/BANKNIFTY positions will be inspected only after your real broker login.</p>
+ <p class="hint">Fully unattended auto-orders require the broker/exchange approvals specified in Stoxkart's API terms. Verification is not order permission.</p>
+ </div>
  <div class="panel pad"><div class="section-bar"><div><h3>Broker &amp; Contract Readiness Preview</h3><p>Use estimated values only. No keys or passwords. This does not authorize an order.</p></div><button class="outline" id="liveRefresh" type="button">Refresh connection status</button></div>
  <div class="form-grid">
   <label>Market<select id="liveMarket"><option value="NIFTY">NIFTY options/futures</option><option value="BANKNIFTY">BANKNIFTY options/futures</option><option value="BTC">Bitcoin derivatives</option></select></label>
-  <label>Selected broker<select id="liveBroker"><option value="Angel">Angel One SmartAPI</option><option value="Delta">Delta Exchange India</option></select></label>
+  <label>Selected broker<select id="liveBroker"><option value="Angel">Angel One SmartAPI</option><option value="Stoxkart">Stoxkart Superr API</option><option value="Delta">Delta Exchange India</option></select></label>
   <label>Strategy ID<input id="liveStrategy" type="number" min="1" max="200000" step="1" value="1"></label>
   <label>Direction<select id="liveSide"><option>BUY</option><option>SELL</option></select></label>
   <label><span id="liveContractHint">Exact NFO option/future contract label</span><input id="liveContract" maxlength="72" autocomplete="off" placeholder="Instrument label (not index spot symbol)"></label>
@@ -93,12 +112,17 @@
  <div id="liveCheckResults" class="live-check-list"></div>
  </div>
  <div class="panel pad broker-dual">
-  <div class="section-bar"><div><h3>Dual Broker Routes · Saved to your account</h3><p>Angel One for both NIFTY markets; Delta India for Bitcoin. Save these preferences across devices — no secrets.</p></div><span class="tag">NO LIVE ORDERS</span></div>
+  <div class="section-bar"><div><h3>Broker Routing · Saved to your account</h3><p>Choose Angel One or Stoxkart separately for NIFTY and BANKNIFTY; Delta India for BTC. Store only preferences, never secrets.</p></div><span class="tag">NO LIVE ORDERS</span></div>
   <div class="broker-pair">
    <div class="broker-box"><strong>Angel One SmartAPI</strong><span>NIFTY / BANKNIFTY · CE/PE/Futures</span><small>Broker session: NOT CONNECTED · static-IP and NFO contract mapping required</small><a href="https://smartapi.angelone.in/docs" target="_blank" rel="noopener noreferrer">Official SmartAPI docs ↗</a></div>
-   <div class="broker-box"><strong>Delta Exchange India</strong><span>Bitcoin perpetual futures and options</span><small>Broker session: NOT CONNECTED · API key, IP whitelist, margin and account verification required</small><a href="https://docs.delta.exchange/" target="_blank" rel="noopener noreferrer">Official Delta India docs ↗</a></div>
+   <div class="broker-box"><strong>Stoxkart Superr API</strong><span>NIFTY / BANKNIFTY · CE/PE/Futures</span><small>Official broker-login redirect; fully automated orders require exchange approval</small><a href="https://developers.stoxkart.com/api-documentation/login" target="_blank" rel="noopener noreferrer">Official Superr API login docs ↗</a></div>
+    <div class="broker-box"><strong>Delta Exchange India</strong><span>Bitcoin perpetual futures and options</span><small>Broker session: NOT CONNECTED · API key, IP whitelist, margin and account verification required</small><a href="https://docs.delta.exchange/" target="_blank" rel="noopener noreferrer">Official Delta India docs ↗</a></div>
   </div>
-  <div class="actions"><button id="saveBrokerRoutes" class="outline" type="button" disabled>Save Angel + Delta routing</button><button id="refreshBrokerRoutes" class="outline" type="button" disabled>Check saved routing</button></div>
+  <div class="form-grid">
+   <label>NIFTY route<select id="routeNifty"><option value="Angel">Angel One</option><option value="Stoxkart">Stoxkart</option></select></label>
+   <label>BANKNIFTY route<select id="routeBankNifty"><option value="Angel">Angel One</option><option value="Stoxkart">Stoxkart</option></select></label>
+  </div>
+  <div class="actions"><button id="saveBrokerRoutes" class="outline" type="button" disabled>Save broker routing</button><button id="refreshBrokerRoutes" class="outline" type="button" disabled>Check saved routing</button></div>
   <p class="hint" id="brokerRoutesStatus" role="status">Sign in to save your trading market/broker preferences. Only routing labels — never API keys.</p>
  </div>
  <div class="panel pad broker-dual">
