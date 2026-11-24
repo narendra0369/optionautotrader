@@ -1,0 +1,55 @@
+{
+  "id": "/",
+  "name": "OptionX AI Trader — Strategy & Paper Trading",
+  "short_name": "OptionX",
+  "description": "OptionX 200K Strategy Lab, paper auto trading and read-only Angel One, Stoxkart & Delta broker setup. Real orders stay OFF.",
+  "start_url": "/#dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080d17",
+  "theme_color": "#080d17",
+  "orientation": "any",
+  "lang": "en-IN",
+  "categories": [
+    "finance",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "icons/optionx-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/optionx-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Paper Auto (Demo)",
+      "short_name": "Paper",
+      "url": "/#paper",
+      "icons": [
+        {
+          "src": "icons/optionx-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Broker Setup — Live OFF",
+      "short_name": "Brokers",
+      "url": "/#live",
+      "icons": [
+        {
+          "src": "icons/optionx-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
