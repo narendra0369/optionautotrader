@@ -216,6 +216,10 @@ export function mountLive({client, onPage}){
  }
  function clearAngelMarketData(message='Market-data preview cleared. No orders or quotes submitted for execution.'){
   selectedAngelContract=null;selectedAngelCandles=null;
+  $('greekFetchBroker').disabled=true;
+  for(const name of ['premium','lotSize','tick','delta','gamma','theta','vega','iv'])$('greek_'+name).value='';
+  setText('greekBrokerStatus','Broker contract cleared. Greeks fetch requires owner-verified Angel option contract.');
+  setText('greekPlanState','Old Greeks/quote cleared. Enter fresh data and recalculate. NO ORDERS.');
   $('angelNfoRows').replaceChildren();
   setText('angelNfoCandleStatus','Contract-specific 15-minute candles have not been fetched.');
   $('angelNfoCandles').disabled=true;
@@ -260,6 +264,12 @@ export function mountLive({client, onPage}){
     select.className='outline';select.textContent='Select for LTP';
     select.addEventListener('click',()=>{
       selectedAngelContract={...c};selectedAngelCandles=null;
+      for(const name of ['premium','lotSize','tick','delta','gamma','theta','vega','iv'])$('greek_'+name).value='';
+      $('greek_lotSize').value=String(c.lotSize);
+      $('greek_tick').value=String(c.tickSize);
+      if(c.side==='CE'||c.side==='PE')$('greek_optionType').value=c.side;
+      $('greekFetchBroker').disabled=!(c.side==='CE'||c.side==='PE');
+      setText('greekBrokerStatus','Contract '+c.symbol+' selected. Fetch owner-bound Greeks if server read-only access is enabled; no orders.');
       $('angelNfoQuote').disabled=false;$('angelNfoCandles').disabled=false;$('angelNfoCsv').disabled=true;
       setText('angelNfoCandleStatus','No candles fetched yet for '+c.symbol+'.');
       setText('angelNfoPrice','Selected '+c.symbol+' · Exchange NFO · No quote fetched yet.');
@@ -288,6 +298,10 @@ export function mountLive({client, onPage}){
       data.executionPriceVerified!==false||data.quoteFreshnessVerified!==false||
       !Number.isFinite(data.ltp)||data.ltp<=0)
     throw Error('ANGEL_LTP_RESPONSE_UNTRUSTED');
+   if(contract.side==='CE'||contract.side==='PE'){
+     $('greek_premium').value=String(data.ltp);
+     setText('greekPlanState','Indicative option LTP loaded. Calculate PAPER research exits; no executable fill or real order.');
+   }
    setText('angelNfoPrice',contract.symbol+' · LTP ₹'+
      Number(data.ltp).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+
      ' · Observed '+data.observedAt+
@@ -297,6 +311,36 @@ export function mountLive({client, onPage}){
      '. No synthetic price or real order.');
   }finally{
    angelQuoteLoading=false;await angelStatus();
+  }
+ }
+
+ async function fetchAngelGreeks(){
+  if(!user||!selectedAngelContract||!['CE','PE'].includes(selectedAngelContract.side))return;
+  const contract={...selectedAngelContract},button=$('greekFetchBroker');button.disabled=true;
+  setText('greekBrokerStatus','Loading authenticated Angel One Greeks from read-only server…');
+  try{
+   const data=await request('/api/v7/angel/greeks?token='+encodeURIComponent(contract.token));
+   if(!data||data.broker!=='Angel'||data.resource!=='selectedOptionGreeks'||
+      data.brokerSourceAuthenticated!==true||data.canSubmitOrder!==false||
+      data.orderExecutionEnabled!==false||data.liveExecutionEnabled!==false||
+      data.exchangeTimestampVerified!==false||data.executionPriceVerified!==false||
+      data.contract?.token!==contract.token||data.contract?.symbol!==contract.symbol||
+      data.contract?.expiry!==contract.expiry||data.contract?.side!==contract.side||
+      data.contract?.lotSize!==contract.lotSize||
+      data.contract?.tickSize!==contract.tickSize||!data.greeks)throw Error('BROKER_GREEKS_UNTRUSTED');
+   for(const field of ['delta','gamma','theta','vega','iv']){
+     const value=data.greeks[field];
+     if(typeof value!=='number'||!Number.isFinite(value))throw Error('BROKER_GREEKS_INVALID');
+     $('greek_'+field).value=String(value);
+   }
+   setText('greekBrokerStatus','Angel Greek snapshot for '+contract.symbol+' observed '+data.observedAt+
+      '. Exchange timestamp and quote freshness NOT verified. No orders sent.');
+   setText('greekPlanState','Greeks loaded: enter/check premium and scenario, then calculate research-only SL/Target.');
+  }catch(e){
+   setText('greekBrokerStatus','Angel Greeks disabled or unavailable: '+String(e.message||'Unknown')+
+      '. Enter independently checked values manually. No real orders.');
+  }finally{
+   button.disabled=!(user&&selectedAngelContract&&['CE','PE'].includes(selectedAngelContract.side));
   }
  }
  async function fetchAngel15mCandles(){
@@ -550,6 +594,7 @@ export function mountLive({client, onPage}){
  $('angelNfoQuote').addEventListener('click',readAngelNfoLtp);
  $('angelNfoCandles').addEventListener('click',fetchAngel15mCandles);
  $('angelNfoCsv').addEventListener('click',exportAngel15mCsv);
+ $('greekFetchBroker').addEventListener('click',fetchAngelGreeks);
  $('angelNfoClear').addEventListener('click',()=>clearAngelMarketData());
  $('angelNfoSide').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected side.'));
  $('angelNfoMarket').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected market.'));
