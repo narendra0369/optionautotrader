@@ -93,11 +93,14 @@
   <div class="actions">
    <button type="button" class="outline" id="angelNfoLoad" disabled>Load official NFO contracts</button>
    <button type="button" class="outline" id="angelNfoQuote" disabled>Fetch selected contract LTP</button>
+   <button type="button" class="outline" id="angelNfoCandles" disabled>Fetch 15m contract candles (3 days)</button>
+   <button type="button" class="outline" id="angelNfoCsv" disabled>Download real 15m CSV</button>
    <button type="button" class="outline" id="angelNfoClear">Clear market-data preview</button>
   </div>
   <p class="hint" role="status" id="angelNfoStatus" aria-live="polite">Verify Angel One owner login in this V7 staging app. Quotes are on demand, not streaming or order-ready.</p>
   <div id="angelNfoRows" class="delta-contract-list"></div>
   <p class="hint" id="angelNfoPrice" aria-live="polite">No verified contract selected or quote received.</p>
+  <p class="hint" id="angelNfoCandleStatus" aria-live="polite">Contract-specific 15-minute candles have not been fetched.</p>
   <p class="hint">Master details include contract symbol, expiry, strike, token, broker lot size and tick size. Quote retrieval does NOT establish executable price freshness or margin. No real order routes.</p>
  </div>
  <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. For V7 staging, owner binding is configured on the separate <b>optionx-v7-offline-test-staging</b> backend. Do not change the production <code>optionx-market-feed</code> Environment or paste broker secrets into Render. This private verification is not a broker trading authorization.</div>
