@@ -392,5 +392,17 @@ class DeepOfflineTests(unittest.TestCase):
         self.assertEqual(r["entryFilledQuantity"], 0)
 
 
+    def test_stoxkart_nfo_paper_risk_preflight_fails_without_exchange_approval(self):
+        t = self._trusted_entry()
+        t["contract"]["broker"] = "Stoxkart"
+        t["quote"]["broker"] = "Stoxkart"
+        intent = self._risk_intent()
+        intent["broker"] = "Stoxkart"
+        r = intent_gate.evaluate(intent, t, now=NOW)
+        self.assertNotIn("MARKET_BROKER_MISMATCH", r["blockedReasons"])
+        self.assertIn("STOXKART_UNATTENDED_EXCHANGE_APPROVAL_UNVERIFIED", r["blockedReasons"])
+        self.assertFalse(r["canSubmitOrder"])
+
+
 if __name__ == "__main__":
     unittest.main()
