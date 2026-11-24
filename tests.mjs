@@ -26,6 +26,7 @@ await import('./live_tests.mjs');
 import {mkdirSync,copyFileSync} from 'node:fs';
 mkdirSync('dist',{recursive:true});
 for(const f of ['chart.mjs','paper_engine.mjs','paper_ui.mjs','live_ui.mjs'])copyFileSync(f,'dist/'+f);
+copyFileSync('stoxkart_callback.html','dist/stoxkart_callback.html');
 console.log('PASS: chart, paper and live modules staged for fixed Render static build command');
 assert.ok(readFileSync('index.html','utf8').includes('id="saveBrokerRoutes"'));
 assert.ok(readFileSync('index.html','utf8').includes('id="chartBTCSource"'));
@@ -36,3 +37,6 @@ assert.ok(readFileSync('index.html','utf8').includes('id="angelConnect"'));
 assert.ok(readFileSync('index.html','utf8').includes('id="angelOwnerId"'));
 assert.ok(readFileSync('live_ui.mjs','utf8').includes("'/api/brokers/angel/connect'"));
 console.log('PASS: secure Angel One login form and no-orders UI added');
+
+assert.ok(readFileSync('dist/stoxkart_callback.html','utf8').includes('optionx_stoxkart_callback_token'));
+console.log('PASS: Stoxkart callback published in static dist, no real order routes');
