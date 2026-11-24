@@ -72,6 +72,18 @@ class AngelReadonlyHttpTests(unittest.TestCase):
         self.assertNotIn('expired',str(body))
         self.assertFalse(body['liveExecutionEnabled'])
 
+    def test_safe_diagnostic_code_reaches_owner_without_private_broker_text(self):
+        with patch.dict(os.environ,ON), patch(
+            'market_api.angel_owner_snapshot',
+            side_effect=ReadOnlyBridgeError('sensitive account details', 'BROKER_AUTH_REJECTED')
+        ):
+            code, body, _ = hit('GET',POSITIONS)
+        self.assertEqual(code,503)
+        self.assertEqual(body['diagnosticCode'],'BROKER_AUTH_REJECTED')
+        self.assertFalse(body['canSubmitOrder'])
+        self.assertFalse(body['liveExecutionEnabled'])
+        self.assertNotIn('sensitive',str(body))
+
     def test_readonly_orderbook_status_including_unknown_is_not_an_order_approval(self):
         book={**SNAPSHOT,'resource':'orderbook','records':[
             {'symbol':'NIFTY27NOV26CE','exchange':'NFO','side':'BUY','quantity':25,
