@@ -1,0 +1,34 @@
+[Unit]
+Description=OptionX Private Paper Health Watchdog (NO brokers or order execution)
+Documentation=https://github.com/narendra0369/optionautotrader
+After=local-fs.target
+ConditionPathExists=/var/lib/optionx-paper/paper-v1.sqlite3
+
+[Service]
+Type=simple
+User=optionx
+Group=optionx
+WorkingDirectory=/opt/optionx-v7
+ExecStart=/usr/bin/python3 -B -m ops.paper_health_watchdog --interval 30
+Restart=always
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/var/lib/optionx-paper
+ReadOnlyPaths=/opt/optionx-v7
+MemoryMax=128M
+TasksMax=24
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
