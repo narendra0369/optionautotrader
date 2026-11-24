@@ -20,6 +20,7 @@ from dual_brokers import catalog as broker_catalog, delta_product, delta_product
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
 from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
+from live_v7.stoxkart_gateway import (status as stoxkart_status, start as stoxkart_start, complete as stoxkart_complete, disconnect as stoxkart_disconnect, positions as stoxkart_positions, StoxkartAuthError)
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
 TIMEFRAMES = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
@@ -189,6 +190,19 @@ class Handler(BaseHTTPRequestHandler):
             except ReadOnlyBridgeError:
                 return self._json(503, {'error': 'Owner-bound read-only broker snapshot unavailable',
                                         'liveExecutionEnabled': False})
+        if path.path in ('/api/brokers/stoxkart/status', '/api/brokers/stoxkart/positions'):
+            if self.headers.get('Origin') != V7_STAGING_ORIGIN or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1':
+                return self._json(403, {'error':'Stoxkart profile inspection is available on V7 staging only'})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user: return self._json(401, {'error':'Verified OptionX owner session required'})
+            try:
+                if path.path.endswith('/status'):
+                    return self._json(200, stoxkart_status(user))
+                return self._json(200, stoxkart_positions(user))
+            except PermissionError:
+                return self._json(403, {'error':'Broker access is limited to the configured OptionX owner'})
+            except StoxkartAuthError:
+                return self._json(503, {'error':'Stoxkart read-only session missing or positions unavailable; no orders sent'})
         if path.path == '/api/brokers/angel/status':
             user = user_from_token(self.headers.get('Authorization'))
             return self._json(200, angel_status(user)) if user else self._json(401, {'error': 'Sign in required'})
@@ -222,6 +236,31 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path in ('/api/brokers/stoxkart/start', '/api/brokers/stoxkart/complete', '/api/brokers/stoxkart/disconnect'):
+            # Stoxkart credentials are accepted ONLY from the dedicated staging
+            # frontend, using an authenticated OptionX owner session.
+            if self.headers.get('Origin') != V7_STAGING_ORIGIN or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1':
+                return self._json(403, {'error':'Stoxkart login allowed on trusted V7 staging origin only'})
+            if self.headers.get('Content-Type','').split(';')[0].strip().lower() != 'application/json':
+                return self._json(415, {'error':'JSON required'})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user: return self._json(401, {'error':'Verified OptionX session required'})
+            try:
+                n = int(self.headers.get('Content-Length','0'))
+                if n < 2 or n > 2048: return self._json(413, {'error':'Invalid request size'})
+                body = json.loads(self.rfile.read(n))
+                if path.endswith('/start'):
+                    return self._json(200, stoxkart_start(user, body))
+                if path.endswith('/complete'):
+                    return self._json(200, stoxkart_complete(user, body))
+                if body != {}: return self._json(400, {'error':'Invalid session-clear request'})
+                return self._json(200, stoxkart_disconnect(user))
+            except PermissionError:
+                return self._json(403, {'error':'Stoxkart limited to configured private OptionX owner'})
+            except StoxkartAuthError as exc:
+                return self._json(400, {'error':str(exc)})
+            except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+                return self._json(400, {'error':'Malformed Stoxkart login request'})
         if path in ('/api/brokers/angel/connect', '/api/brokers/angel/disconnect'):
             # CSRF defense: only the published OPTIONX HTTPS origin can send
             # personal broker login secrets to this endpoint.
