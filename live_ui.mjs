@@ -7,6 +7,60 @@ const API = (location.hostname === 'optionx-v7-frontend-test-staging.onrender.co
 const DOCS = {Zerodha:'https://kite.trade/docs/connect/v3/',Angel:'https://smartapi.angelone.in/docs',Stoxkart:'https://developers.stoxkart.com/api-documentation/login',Dhan:'https://dhanhq.co/docs/v2/authentication/',Delta:'https://docs.delta.exchange/'};
 const marketBrokers = {NIFTY:['Angel','Stoxkart'],BANKNIFTY:['Angel','Stoxkart'],BTC:['Delta']};
 const formats = {INR: new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}),USD:new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2})};
+
+// Greeks use manually entered, unverified broker-style snapshot values.
+// These functions make PAPER PREVIEWS ONLY: no HTTP calls, order methods or
+// storage. MARKET/IOC forbidden, and there is no exchange-native OCO assumed.
+export function planGreekExit(d){
+ const fail=(code)=>({status:'BLOCKED',code,canSubmitRealOrder:false,brokerOrdersSent:0});
+ if(!d||typeof d!=='object')return fail('MISSING_INPUT');
+ const preset={ORB18:1,EMA:0.85,IV_DEFENSE:0.65}[d.strategy];
+ if(!preset)return fail('INVALID_STRATEGY');
+ if(d.orderType!=='LIMIT'||d.duration!=='DAY')return fail('MARKET_OR_IOC_NOT_PERMITTED');
+ if(!['CE','PE'].includes(d.optionType))return fail('OPTION_TYPE_REQUIRED');
+ const get=k=>d[k]===''||d[k]===undefined||d[k]===null||typeof d[k]==='boolean'?NaN:Number(d[k]);
+ const [price,lot,lots,tick,risk,reward,delta,gamma,theta,vega,iv,spot,ivShock,mins]=
+ ['premium','lotSize','lots','tick','maxRisk','reward','delta','gamma','theta','vega','iv','spotMove','ivShock','minutes'].map(get);
+ if([price,lot,lots,tick,risk,reward,delta,gamma,theta,vega,iv,spot,ivShock,mins].some(x=>!Number.isFinite(x)))
+   return fail('FRESH_VERIFIED_NUMERIC_INPUT_REQUIRED');
+ if(!Number.isSafeInteger(lot)||!Number.isSafeInteger(lots)||lot<1||lot>10000||lots<1||lots>100||
+   lot*lots>100000)return fail('INVALID_LOT_SIZE');
+ if(price<=tick||price>1000000||tick<=0||tick>100||risk<=0||risk>1e7||reward<=0||reward>1e7||
+    Math.abs(delta)>1||gamma<0||gamma>5||Math.abs(theta)>10000||vega<0||vega>10000||
+    iv<=0||iv>200||spot<=0||spot>20000||ivShock<0||ivShock>50||
+    mins<=0||mins>375||d.optionType==='CE'&&delta<=0||d.optionType==='PE'&&delta>=0)
+   return fail('CONTRACT_OR_GREEKS_OUT_OF_RANGE');
+ if(Math.abs(price/tick-Math.round(price/tick))>1e-7)return fail('OPTION_PREMIUM_TICK_MISMATCH');
+ const qty=lot*lots,lossPerUnit=risk/qty;
+ if(lossPerUnit<tick-1e-10)return fail('RISK_BUDGET_LESS_THAN_ONE_TICK');
+ // Hypothetical scenario ONLY, not a price forecast. Theta/day, Vega/IV-pt
+ // unit assumptions require independent broker verification.
+ const signed=Math.sign(delta),adverseSpot=-signed*spot,positiveSpot=signed*spot;
+ const adverse=delta*adverseSpot+0.5*gamma*adverseSpot*adverseSpot+
+      theta*(mins/375)-vega*ivShock;
+ const favourable=delta*positiveSpot+0.5*gamma*positiveSpot*positiveSpot+
+      theta*(mins/375)+vega*ivShock;
+ const greekAdverse=Math.max(0,-adverse),greekFavourable=Math.max(0,favourable);
+ const width=Math.min(lossPerUnit*preset,Math.max(tick,greekAdverse*preset));
+ const sl=Math.ceil((price-width)/tick-1e-9)*tick;
+ const tgt=Math.ceil((price+reward/qty)/tick-1e-9)*tick;
+ const round=x=>Math.round((x+Number.EPSILON)*1e8)/1e8;
+ const stop=round(sl),target=round(tgt),limit=round(sl-tick);
+ const loss=round((price-stop)*qty),profit=round((target-price)*qty);
+ if(!(limit>0&&stop<price&&target>price&&loss>0&&loss<=risk+1e-6&&profit>=reward-1e-6))
+   return fail('NO_VALID_TICK_ALIGNED_EXIT');
+ return {status:'PREVIEW_READY',mode:'MANUAL_GREEKS_PAPER_PREVIEW',
+   sourceAuthenticated:false,canSubmitRealOrder:false,brokerOrdersSent:0,
+   entryLimit:price,quantity:qty,stopTrigger:stop,stopLimit:limit,
+   targetLimit:target,estimatedLossINR:loss,estimatedProfitINR:profit,
+   greekAdverse:round(adverse),greekFavourable:round(favourable),
+   targetAboveScenario:greekFavourable<target-price,
+   entryOrderType:'LIMIT',stopOrderType:'STOPLOSS_LIMIT',
+   targetOrderType:'LIMIT',duration:'DAY',
+   protectiveExitRequiresBrokerFill:true,
+   targetRequiresStopCancellationAndFreshPosition:true};
+}
+
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
@@ -528,6 +582,40 @@ export function mountLive({client, onPage}){
  $('liveRefresh').addEventListener('click',()=>{status();v7Readiness();});
  $('liveCheck').addEventListener('click',preview);
  $('livePaper').addEventListener('click',()=>onPage('paper'));
+
+ // Greeks research preview never calls authenticated broker APIs or order
+ // endpoints. All fields are local and deliberately cleared on changes.
+ const greekIDs=['strategy','optionType','orderType','duration','premium','lotSize',
+    'lots','tick','maxRisk','reward','delta','gamma','theta','vega','iv',
+    'spotMove','ivShock','minutes'];
+ const recalcGreeks=()=>{
+   const inputs=Object.fromEntries(greekIDs.map(k=>[k,$('greek_'+k).value.trim()]));
+   const p=planGreekExit(inputs);
+   if(p.status!=='PREVIEW_READY'){
+     setText('greekPlanState','BLOCKED — '+p.code+'. Check broker contract and Greeks. No order sent.');
+     for(const id of ['greekStop','greekTarget','greekRiskEstimate'])setText(id,'—');
+     setText('greekScenario','No usable Greeks scenario.');
+     return;
+   }
+   const money=v=>'₹'+v.toFixed(2);
+   setText('greekStop',money(p.stopTrigger)+' (SL-LIMIT '+money(p.stopLimit)+')');
+   setText('greekTarget',money(p.targetLimit)+' (SELL LIMIT DAY)');
+   setText('greekRiskEstimate',money(p.estimatedLossINR)+' possible loss / '+
+                                  money(p.estimatedProfitINR)+' planned profit, before fees');
+   setText('greekScenario','Hypothetical Greek move: adverse '+p.greekAdverse+
+          ' / favourable '+p.greekFavourable+
+          (p.targetAboveScenario?' · target above scenario estimate':''));
+   setText('greekPlanState','PREVIEW ONLY — Qty '+p.quantity+
+     ', BUY LIMIT '+money(p.entryLimit)+', SELL SL-LIMIT '+money(p.stopTrigger)+
+     ', SELL target LIMIT '+money(p.targetLimit)+
+     '. Cannot place broker orders. Broker-confirmed fills, stops and stop cancellation are required; no automatic OCO.');
+ };
+ $('greekCalculate').addEventListener('click',recalcGreeks);
+ for(const k of greekIDs)$('greek_'+k).addEventListener('input',()=>{
+   setText('greekPlanState','Inputs changed; calculate again. No real orders sent.');
+   for(const id of ['greekStop','greekTarget','greekRiskEstimate'])setText(id,'—');
+ });
+
  $('liveBrokerDocs').href=DOCS.Zerodha;alignMarket();checks([]);
  return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
     setText('liveGateway','Sign in required');setText('liveBrokerStatus','Not connected');setText('liveOwnerStatus','Not configured');
