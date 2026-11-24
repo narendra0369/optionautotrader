@@ -46,7 +46,9 @@ if ! id optionx >/dev/null 2>&1; then
 fi
 mv -- "$CANDIDATE" "$APP_DIR"
 chown -R root:root "$APP_DIR"
-chmod -R go-w "$APP_DIR"
+# mktemp creates mode 0700; the unprivileged service user needs directory traversal.
+find "$APP_DIR" -type d -exec chmod 0755 {} +
+find "$APP_DIR" -type f -exec chmod go-w {} +
 
 cat > "$UNIT" <<'UNITFILE'
 [Unit]
@@ -59,7 +61,7 @@ Type=simple
 User=optionx
 Group=optionx
 WorkingDirectory=/opt/optionx-v7
-ExecStart=/usr/bin/python3 -B /opt/optionx-v7/ops/aws_local_market_feed.py
+ExecStart=/usr/bin/python3 -B -m ops.aws_local_market_feed
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=OPTIONX_V7_STAGING_CORS=0
 Environment=OPTIONX_LIVE_ORDERS_ENABLED=0
