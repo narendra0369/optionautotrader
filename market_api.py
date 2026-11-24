@@ -19,6 +19,7 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7.angel_greeks import angel_selected_contract_greeks
 from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
 from live_v7.angel_marketdata import list_contracts as angel_list_contracts, quote_ltp as angel_quote_ltp, historical_15m as angel_candles_15m, MarketDataError
 from live_v7.stoxkart_gateway import (status as stoxkart_status, start as stoxkart_start, complete as stoxkart_complete, disconnect as stoxkart_disconnect, positions as stoxkart_positions, StoxkartAuthError)
@@ -179,7 +180,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {'error': str(exc)[:160]})
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
-        if path.path in ('/api/v7/angel/contracts', '/api/v7/angel/ltp', '/api/v7/angel/candles'):
+        if path.path in ('/api/v7/angel/contracts', '/api/v7/angel/ltp', '/api/v7/angel/candles', '/api/v7/angel/greeks'):
             # Owner-bound, fixed-source NFO market-data reads only. LTP uses the
             # broker's read-only POST endpoint server-side; no order APIs exist.
             if (self.headers.get('Origin') != V7_STAGING_ORIGIN
@@ -192,6 +193,9 @@ class Handler(BaseHTTPRequestHandler):
             if os.getenv('OPTIONX_V7_MARKETDATA_ANGEL_ENABLED', '0') != '1':
                 return self._json(423, {'error':'Angel market-data pilot is disabled',
                                         'liveExecutionEnabled':False,'canSubmitOrder':False})
+            if path.path.endswith('/greeks') and os.getenv('OPTIONX_V7_GREEKS_ANGEL_ENABLED','0')!='1':
+                return self._json(423, {'error':'V7_OWNER_ANGEL_GREEKS_READ_DISABLED',
+                                        'canSubmitOrder':False,'liveExecutionEnabled':False})
             params=parse_qs(path.query,keep_blank_values=True)
             allowed = ({'market','side','strike'} if path.path.endswith('/contracts') else
                        {'token','days'} if path.path.endswith('/candles') else {'token'})
@@ -208,9 +212,12 @@ class Handler(BaseHTTPRequestHandler):
                         return self._json(400, {'error':'Historical contract window must be 1,2,3,5 or 7 days'})
                     return self._json(200, angel_candles_15m(
                         user, params.get('token',[''])[0], days=int(days)))
+                if path.path.endswith('/greeks'):
+                    return self._json(200, angel_selected_contract_greeks(
+                        user, params.get('token',[''])[0]))
                 return self._json(200, angel_quote_ltp(user,params.get('token',[''])[0]))
             except MarketDataError as exc:
-                status = (429 if exc.code in ('QUOTE_POLL_RATE_LIMIT','CANDLE_POLL_RATE_LIMIT') else
+                status = (429 if exc.code in ('QUOTE_POLL_RATE_LIMIT','CANDLE_POLL_RATE_LIMIT','GREEKS_POLL_RATE_LIMIT') else
                           400 if exc.code in ('INVALID_CONTRACT_FILTER','INVALID_INSTRUMENT_TOKEN',
                                               'INVALID_INSTRUMENT_NUMBER') else
                           401 if exc.code=='ANGEL_SESSION_EXPIRED' else 503)
