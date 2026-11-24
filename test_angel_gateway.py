@@ -56,7 +56,30 @@ class TestAngelGateway(unittest.TestCase):
         combined = json.dumps(result)
         for secret in ('123456', 'PRIVATE_REFRESH', 'PRIVATE_FEED', LOGIN_TOKEN, '1234', CREDS['apiKey']):
             self.assertNotIn(secret, combined)
-        self.assertFalse(ag.status(USER, now=1900)['connected'])
+        self.assertTrue(ag.status(USER, now=1900)['connected'])  # no arbitrary 15-minute expiry
+        midnight=ag.trading_day_expiry(1000)
+        self.assertTrue(ag.status(USER, now=midnight-1)['connected'])
+        self.assertFalse(ag.status(USER, now=midnight)['connected'])
+        self.assertEqual(result['readOnlySessionScope'], 'TRADING_DAY_READONLY')
+        self.assertEqual(result['sessionStorage'], 'SERVER_RAM_ONLY')
+    def test_midnight_ist_boundary_and_no_next_day_reuse(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        tz=ZoneInfo('Asia/Kolkata')
+        before=datetime(2026, 11, 25, 23, 59, 45, tzinfo=tz).timestamp()
+        expiry=datetime(2026, 11, 26, 0, 0, tzinfo=tz).timestamp()
+        self.assertEqual(ag.trading_day_expiry(before), expiry)
+        r=ag.connect(USER, dict(CREDS), fetch=BrokerFake(), now=before)
+        self.assertEqual(r['expiresAt'], datetime.fromtimestamp(expiry, __import__('datetime').timezone.utc).isoformat())
+        self.assertTrue(ag.status(USER, now=expiry-1)['connected'])
+        self.assertFalse(ag.status(USER, now=expiry)['connected'])
+        self.assertFalse(r['orderExecutionEnabled'])
+
+    def test_process_restart_loses_only_ram_session(self):
+        ag.connect(USER, dict(CREDS), fetch=BrokerFake(), now=1000)
+        ag._SESSIONS.clear()
+        self.assertFalse(ag.status(USER, now=1100)['connected'])
+
     def test_owner_required_even_with_valid_credentials(self):
         with self.assertRaises(PermissionError): ag.connect(OTHER, dict(CREDS), fetch=BrokerFake())
         self.assertFalse(ag.status(OTHER)['connected'])
