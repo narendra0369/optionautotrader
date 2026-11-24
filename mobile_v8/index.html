@@ -36,6 +36,12 @@
 <section data-panel="access" class="screen" hidden>
 <p class="eyebrow">ACCESS &amp; SAFETY</p><h1>Broker Connections</h1>
 <div class="card"><h2>Angel One · Private AWS</h2><p>Profile, NFO contract and indicative LTP were previously verified privately over AWS SSH. This mobile site has no broker session.</p><div class="tag amber">NOT CONNECTED TO THIS APP</div></div>
+<div class="card" id="daily-angel-connect"><h2>One-time Angel Connection (Mobile)</h2>
+<p>Use your existing OPTIONX verified-owner website to enter the Angel Client Code, Trading API Key, PIN and fresh TOTP <b>once per active session</b>. During that session, Check Status, read-only Orders and Positions do not ask for another TOTP.</p>
+<p><b>Current limit:</b> 15-minute in-memory read-only session on V7 staging. The separate daily read-only extension is prepared in source but NOT deployed until a verified private AWS HTTPS gateway is approved. Broker revocation may end any session sooner.</p>
+<a class="secondary action" href="https://optionx-v7-frontend-test-staging.onrender.com/#live" target="_blank" rel="noopener noreferrer">Open Secure Angel Login (V7) ↗</a>
+<p>Never type passwords into this public preview. The link opens the existing HTTPS broker form without putting credentials in the URL. It does not log your AWS execution engine in.</p>
+</div>
 <div class="card"><h2>Live-money gateway</h2><p>Hard locked. Broker order lifecycle, authenticated owner access, exchange permissions and protective exits are not approved.</p><div class="tag">DISABLED</div></div>
 <div class="card"><h2>Install on Android</h2><p>Open the site in Chrome, choose the menu, then <b>Install app</b> or <b>Add to Home screen</b>. This is a safe read-only mobile app shell, not a broker execution app.</p>
 <button id="install" class="primary" disabled>Install via Chrome menu</button></div></section>
