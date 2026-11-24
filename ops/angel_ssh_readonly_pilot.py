@@ -79,7 +79,7 @@ def _prompt_credentials() -> dict:
     """Read inputs only from the user's private SSH TTY, with no shell history."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise PilotError("INTERACTIVE_SSH_TTY_REQUIRED")
-    code = input("Angel client code (not printed again): ").strip()
+    code = getpass.getpass("Angel client code (hidden): ").strip()
     key = getpass.getpass("SmartAPI Trading API key (hidden): ").strip()
     pin = getpass.getpass("Angel login PIN (hidden): ").strip()
     totp = getpass.getpass("Current 6-digit TOTP (hidden): ").strip()
