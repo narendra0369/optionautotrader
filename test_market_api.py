@@ -77,3 +77,5 @@ from live_v7.test_angel_order_contracts import AngelOrderContractsTests
 
 # No-network owner-only egress audit regression; never broker/order calls.
 from live_v7.test_egress_diagnostic import EgressDiagnosticTests
+
+from live_v7.test_angel_greeks_order_bridge import GreeksOrderBridgeTests
