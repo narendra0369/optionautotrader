@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<title>OptionX — Stoxkart login return</title>
+<style>
+body{margin:0;background:#0b1422;color:#edf0f5;font:16px system-ui,sans-serif;display:grid;min-height:100vh;place-items:center}
+main{padding:24px;max-width:480px}h1{font-size:22px}p{color:#a9b7ca;line-height:1.5}
+</style>
+</head>
+<body>
+<main><h1>Stoxkart account verification</h1><p id="msg">Handling official broker redirect. No trade will be placed.</p></main>
+<script>
+(function(){
+  'use strict';
+  const msg=document.getElementById('msg');
+  const p=new URLSearchParams(location.search);
+  const requestToken=p.get('req_token')||p.get('request_token')||p.get('auth_token')||'';
+  // Remove the broker token from the address bar immediately.
+  history.replaceState(null,'','/stoxkart_callback.html');
+  const flow=sessionStorage.getItem('optionx_stoxkart_flow')||'';
+  const valid=/^[A-Za-z0-9._~-]{20,512}$/.test(requestToken)
+     && /^[A-Za-z0-9_-]{20,128}$/.test(flow);
+  if(!valid){
+    sessionStorage.removeItem('optionx_stoxkart_flow');
+    msg.textContent='Broker redirect is missing a valid request token or OptionX login flow. Return to OptionX and start again.';
+    return;
+  }
+  // SessionStorage is tab-scoped, cleared immediately when OptionX submits
+  // it to the authenticated backend. Never use cookies or localStorage.
+  sessionStorage.setItem('optionx_stoxkart_callback_token',requestToken);
+  location.replace('/#live');
+})();
+</script>
+</body>
+</html>
