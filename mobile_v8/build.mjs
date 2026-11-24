@@ -39,4 +39,4 @@ function icon(n){
     chunk('IHDR',ihdr),chunk('IDAT',zlib.deflateSync(buffer,{level:9})),chunk('IEND',Buffer.alloc(0))]);
 }
 for(const n of [192,512])fs.writeFileSync(path.join(dist,'icons','icon-'+n+'.png'),icon(n));
-console.log('OPTIONX_PUBLIC_PWA_BUILD_PASS: 4 mobile screens, icons and offline shell');
+console.log('OPTIONX_PUBLIC_PWA_BUILD_PASS: 8 mobile screens, public HTTPS research feeds, icons and offline shell');
