@@ -29,6 +29,36 @@ bars.push(candle(133,104,tp+2,sl-2,104));ret=stepPaper(a,bars,atNow(133));a=ret.
 assert.equal(a.state.position,null);assert.equal(a.state.trades[0].reason,'STOP');assert(a.state.trades[0].netPnl<0);
 assert.equal(paperMetrics(a).closedTrades,1);assert(a.state.realized<0);
 const dis=disarmPaper(a);assert.equal(dis.state.armed,false);assert.equal(stepPaper(dis,bars,atNow(133)).changed,false);
+// Any second entry already counted must never create a third, regardless of
+// SL/target outcome. Keep managing an open 2nd paper position until it exits.
+for(const outcome of ['STOP','TARGET']){
+ const latest=bars.at(-1),d=new Date(latest.time).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+ const base=makePaperAccount('NIFTY',{strategyId});
+ base.state.armed=true;base.state.day=d;base.state.countToday=2;
+ base.state.lastBarTime=latest.time;
+ base.state.position={id:'paper-second-test',dir:1,qty:1,entry:100,
+   stop:95,target:110,openedAt:latest.time,barCount:1,exitMode:0,period:8,risk:5};
+ const nxt=outcome==='STOP'?candle(134,100,101,94,96):candle(134,100,111,98,110);
+ const result=stepPaper(base,[...bars,nxt],atNow(134)).account;
+ assert.equal(result.state.position,null);
+ assert.equal(result.state.trades[0].reason,outcome);
+ assert.equal(result.state.countToday,2);
+ assert.equal(result.state.armed,false,'must stop paper after second exit');
+ assert.match(result.state.status,/2\/2 entries/);
+ assert.equal(stepPaper(result,[...bars,nxt],atNow(134)).changed,false);
+}
+// Existing second position must continue SL/TP management after entry cap.
+const twoOpen=makePaperAccount('NIFTY',{strategyId});
+twoOpen.state.armed=true;
+twoOpen.state.day=new Date(bars.at(-1).time).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+twoOpen.state.countToday=2;twoOpen.state.lastBarTime=bars.at(-1).time;
+twoOpen.state.position={id:'paper-second-open',dir:1,qty:1,entry:100,
+ stop:95,target:110,openedAt:bars.at(-1).time,barCount:1,exitMode:0,period:8,risk:5};
+const still=stepPaper(twoOpen,[...bars,candle(134,100,103,97,101)],atNow(134)).account;
+assert.equal(still.state.armed,true,'keep monitoring existing open second paper position');
+assert.equal(still.state.countToday,2);
+assert(still.state.position);
+
 assert.throws(()=>makePaperAccount('BTC',{capital:10000,risk:2000}),/safety/i);
 assert.throws(()=>makePaperAccount('NIFTY',{maxTrades:8}),/1–5/);
 assert.throws(()=>armPaper(makePaperAccount('NIFTY'),bars.slice(0,5),atNow(10)),/120/);
