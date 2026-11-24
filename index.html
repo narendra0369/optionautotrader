@@ -62,7 +62,7 @@
 </div>
 <div class="panel pad" id="angelConnectionPanel">
  <div class="section-bar"><div><h3>Angel One · Secure account verification</h3><p>Personal SmartAPI login + read-only profile check. Credentials are sent once to the secured API, not saved in Supabase or browser storage.</p></div><span class="paper-badge">NO REAL ORDERS</span></div>
- <div class="disclaimer"><b>Before you connect:</b> Verify that you are on https://optionx-200k-strategy-lab.onrender.com. Enter credentials only in this HTTPS form, never in chat or GitHub. The backend must be bound to your OptionX user ID; login sessions are temporary and expire after 15 minutes or server restart. Registered static IP is still required for real orders.</div>
+ <div class="disclaimer"><b>Before you connect:</b> For V7 private read-only account inspection, verify the exact URL is https://optionx-v7-frontend-test-staging.onrender.com. Enter credentials only on this HTTPS staging form, never in chat or GitHub. The backend must be bound to your OptionX user ID; login sessions are temporary and expire after 15 minutes or server restart. Registered static IP is still required for real orders.</div>
  <div class="form-grid">
   <label>Angel One SmartAPI Key<input id="angelApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="API key — not saved" maxlength="128"></label>
   <label>Angel Client Code<input id="angelClient" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your broker Client Code" maxlength="24"></label>
@@ -83,7 +83,7 @@
   <div id="angelReadonlyRows" class="broker-readonly-rows" aria-live="polite"></div>
   <p class="hint">Sensitive account data stays on this page in memory only. The snapshot is fetched on demand and cleared on sign-out/disconnection. No execution price feed, margin check or live order permission is implied.</p>
  </div>
- <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. In Render → <b>optionx-market-feed</b> → Environment, set <code>OPTIONX_OWNER_USER_ID</code> to that ID (no PIN or secret in this setting). Wait until the backend redeploys, then verify the login. This private verification is not a broker trading authorization.</div>
+ <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. For V7 staging, owner binding is configured on the separate <b>optionx-v7-offline-test-staging</b> backend. Do not change the production <code>optionx-market-feed</code> Environment or paste broker secrets into Render. This private verification is not a broker trading authorization.</div>
 </div>
  <div class="panel pad" id="stoxkartConnectionPanel">
  <div class="section-bar"><div><h3>Stoxkart · Superr API Login</h3><p>Free API access advertised by broker; standard trade charges still apply. Broker login and TOTP happen on Stoxkart's own website.</p></div><span class="paper-badge">READ ONLY · NO ORDERS</span></div>
