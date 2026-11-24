@@ -23,6 +23,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from angel_gateway import angel_client_identity_headers, AuthError
+
 HOSTS = {
     "Angel": "https://apiconnect.angelone.in",
     "Delta": "https://api.india.delta.exchange",
@@ -44,12 +46,15 @@ TIMEOUT_SECONDS = 7
 
 
 class ReadOnlyTransportError(ValueError):
-    pass
+    def __init__(self, message: str, diagnostic_code: str = "BROKER_READ_UNAVAILABLE"):
+        super().__init__(message)
+        # Fixed code only; never broker response text or authorization secrets.
+        self.diagnostic_code = diagnostic_code
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise ReadOnlyTransportError("Broker redirect rejected")
+        raise ReadOnlyTransportError("Broker redirect rejected", "BROKER_REDIRECT_BLOCKED")
 
 
 @dataclass(frozen=True, repr=False)
@@ -89,7 +94,7 @@ def _session_valid(s: ServerOnlySession, resource: str, owner_id: str) -> str:
     return route
 
 
-def request_headers(s: ServerOnlySession, *, path: str, timestamp: int | None = None) -> dict[str, str]:
+def request_headers(s: ServerOnlySession, *, path: str, timestamp: int | None = None, allow_public_lookup: bool = True) -> dict[str, str]:
     """Create credentials for a FIXED GET resource, never arbitrary paths.
 
     Never write these headers to logs or return them to a browser.
@@ -103,7 +108,13 @@ def request_headers(s: ServerOnlySession, *, path: str, timestamp: int | None = 
             "X-PrivateKey": s.api_key,
             "X-UserType": "USER",
             "X-SourceID": "WEB",
+            "Content-Type": "application/json",
         })
+        try:
+            base.update(angel_client_identity_headers(allow_public_lookup=allow_public_lookup))
+        except AuthError:
+            raise ReadOnlyTransportError("Angel network identity is invalid",
+                                         "ANGEL_CLIENT_IP_CONFIG_INVALID") from None
     elif s.broker == "Delta":
         stamp = int(time.time()) if timestamp is None else timestamp
         if isinstance(stamp, bool) or not isinstance(stamp, int) or stamp < 1:
@@ -135,7 +146,7 @@ def fetch_readonly(
     path = _session_valid(session, resource, verified_owner_id)
     req = urllib.request.Request(
         HOSTS[session.broker] + path,
-        headers=request_headers(session, path=path),
+        headers=request_headers(session, path=path, allow_public_lookup=fetch is None),
         method="GET",
     )
     try:
@@ -153,10 +164,17 @@ def fetch_readonly(
         if len(raw) > MAX_RESPONSE:
             raise ReadOnlyTransportError("Broker response exceeded safe limit")
         parsed = json.loads(raw)
-    except (urllib.error.HTTPError, urllib.error.URLError, OSError, TimeoutError,
-            UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
-        # Never leak auth headers, server body, signatures or tokens.
-        raise ReadOnlyTransportError("Broker read failed or permission denied") from None
+    except urllib.error.HTTPError as exc:
+        code = int(exc.code)
+        safe = ("BROKER_AUTH_REJECTED" if code in (401, 403) else
+                "BROKER_RATE_LIMIT" if code == 429 else
+                "BROKER_SERVER_ERROR" if code >= 500 else "BROKER_HTTP_REJECTED")
+        raise ReadOnlyTransportError("Broker read failed or permission denied", safe) from None
+    except (urllib.error.URLError, OSError, TimeoutError):
+        raise ReadOnlyTransportError("Broker read network failure", "BROKER_NETWORK_ERROR") from None
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError):
+        # Never log broker body: JSON may include private account data or secrets.
+        raise ReadOnlyTransportError("Broker response could not be parsed", "BROKER_INVALID_RESPONSE") from None
     if not isinstance(parsed, dict):
         raise ReadOnlyTransportError("Broker returned unexpected response structure")
     # Raw broker data is server-only. Sanitize via broker_readonly.py before
