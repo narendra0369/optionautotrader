@@ -47,6 +47,10 @@ def _permitted_origin(origin: str, request_path: str = '') -> bool:
     if origin == ALLOWED_ORIGIN:
         return True
     if origin == V7_STAGING_ORIGIN:
+        # Public candle/health resources are safe for the V7 Paper UI.
+        # Broker/account routes still require an independent owner-bound gate.
+        if request_path in ('/health', '/api/candles'):
+            return True
         return os.getenv('OPTIONX_V7_STAGING_CORS', '0') == '1'
     if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
         host, sep, port = origin.rpartition(':')
