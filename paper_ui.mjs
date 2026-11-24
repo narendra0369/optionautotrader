@@ -3,7 +3,9 @@ import {makePaperAccount,assertConfig,armPaper,disarmPaper,emergencyPaperClose,s
 const $=id=>document.getElementById(id);
 const money=(n,m)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:m==='BTC'?'USD':'INR',maximumFractionDigits:2}).format(n);
 const fmt=t=>t?new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true}):'—';
-const API='https://optionx-market-feed.onrender.com';
+const API = location.hostname === 'optionx-v7-frontend-test-staging.onrender.com'
+  ? 'https://optionx-v7-offline-test-staging.onrender.com'
+  : 'https://optionx-market-feed.onrender.com';
 const DOCS={Zerodha:'https://kite.trade/docs/connect/v3/',Angel:'https://smartapi.angelone.in/docs',Dhan:'https://dhanhq.co/docs/v2/authentication/',Delta:'https://docs.delta.exchange/'};
 export function mountPaper({client,onPage}){
  const accounts={};const latest={};let user=null,current='NIFTY',busy=false,lastError='',requestGeneration=0;
