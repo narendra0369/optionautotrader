@@ -15,7 +15,7 @@ for(const n of [192,512]){
   assert.equal(buf.readUInt32BE(16),n);assert.equal(buf.readUInt32BE(20),n);
 }
 for(const panel of ['home','markets','strategies','backtests','paper','access','live','more'])assert.ok(html.includes('data-panel="'+panel+'"'));
-assert.ok(html.includes('NOT connected'));
+assert.ok(html.includes('This mobile site has no broker session.'));
 assert.ok(html.includes('NOT live-synced'));
 assert.ok(html.includes('id="daily-angel-connect"'));
 assert.ok(html.includes('https://optionx-v7-frontend-test-staging.onrender.com/#live'));
