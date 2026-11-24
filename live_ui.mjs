@@ -300,6 +300,7 @@ export function mountLive({client, onPage}){
     throw Error('ANGEL_LTP_RESPONSE_UNTRUSTED');
    if(contract.side==='CE'||contract.side==='PE'){
      $('greek_premium').value=String(data.ltp);
+     $('greekCalculate').click();
      setText('greekPlanState','Indicative option LTP loaded. Calculate PAPER research exits; no executable fill or real order.');
    }
    setText('angelNfoPrice',contract.symbol+' · LTP ₹'+
@@ -335,7 +336,8 @@ export function mountLive({client, onPage}){
    }
    setText('greekBrokerStatus','Angel Greek snapshot for '+contract.symbol+' observed '+data.observedAt+
       '. Exchange timestamp and quote freshness NOT verified. No orders sent.');
-   setText('greekPlanState','Greeks loaded: enter/check premium and scenario, then calculate research-only SL/Target.');
+   $('greekCalculate').click();
+   setText('greekBrokerStatus','Greeks loaded and PAPER SL/Target recalculated if all inputs are valid. Exchange timestamp not verified; no orders.');
   }catch(e){
    setText('greekBrokerStatus','Angel Greeks disabled or unavailable: '+String(e.message||'Unknown')+
       '. Enter independently checked values manually. No real orders.');
@@ -656,10 +658,12 @@ export function mountLive({client, onPage}){
      '. Cannot place broker orders. Broker-confirmed fills, stops and stop cancellation are required; no automatic OCO.');
  };
  $('greekCalculate').addEventListener('click',recalcGreeks);
- for(const k of greekIDs)$('greek_'+k).addEventListener('input',()=>{
-   setText('greekPlanState','Inputs changed; calculate again. No real orders sent.');
-   for(const id of ['greekStop','greekTarget','greekRiskEstimate'])setText(id,'—');
- });
+ // Every change automatically updates the *preview*, not real orders.
+ // A partially typed/missing Greek fails closed without fabricating levels.
+ for(const k of greekIDs){
+   $('greek_'+k).addEventListener('input',recalcGreeks);
+   $('greek_'+k).addEventListener('change',recalcGreeks);
+ }
 
  $('liveBrokerDocs').href=DOCS.Zerodha;alignMarket();checks([]);
  return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
