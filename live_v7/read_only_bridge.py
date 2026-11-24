@@ -89,6 +89,7 @@ def angel_owner_snapshot(
         "snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2",
         "quoteAndContractMasterVerified": False,
         "orderExecutionEnabled": False,
+        "liveExecutionEnabled": False,  # Explicit legacy/frontend safety contract
         "canSubmitOrder": False,
         "notice": "Read-only account snapshot. Does not authorize execution.",
     }
