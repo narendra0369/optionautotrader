@@ -111,7 +111,7 @@ def run_owner_readonly(*, expected_ip: str):
     from live_v7.read_only_bridge import (
         angel_owner_snapshot, ReadOnlyBridgeError,
     )
-    from ops.angel_ssh_readonly_pilot import _prompt_credentials
+    from ops.angel_batch_readonly import _prompt_credentials
 
     os.environ["OPTIONX_OWNER_USER_ID"] = OWNER
     os.environ["ANGEL_EGRESS_PUBLIC_IPV4"] = expected_ip
