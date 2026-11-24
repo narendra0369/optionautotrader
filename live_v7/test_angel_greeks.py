@@ -92,12 +92,12 @@ class AngelGreeksReadOnlyTests(unittest.TestCase):
         def bad(rows):
             return lambda req,timeout: MockQuote(json.dumps({"status":True,"data":rows}).encode())
         row=chain()["data"][0]
-        for rows in ([],[row,row],[{**row,"strikePrice":"24900"}],
-                     [{**row,"delta":"1.2"}],[{**row,"impliedVolatility":"NaN"}]):
+        for idx, rows in enumerate(([],[row,row],[{**row,"strikePrice":"24900"}],
+                     [{**row,"delta":"1.2"}],[{**row,"impliedVolatility":"NaN"}])):
             with self.subTest(rows=rows),self.assertRaises(md.MarketDataError):
                 g.angel_selected_contract_greeks(
                     "verified-user","111111",master_fetch=master,greeks_fetch=bad(rows),
-                    clock=CLOCK+len(str(rows))%4+20)  # separate time windows
+                    clock=CLOCK+20+idx*9)  # separate rate-limit windows
 
     def test_http_greeks_separately_locked_by_default_and_wrong_origin(self):
         with patch.dict(os.environ,{"OPTIONX_V7_MARKETDATA_ANGEL_ENABLED":"1",
