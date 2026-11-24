@@ -26,3 +26,31 @@
 .delta-product div{display:grid;gap:6px;min-width:0}.delta-product strong{font-size:12px;overflow-wrap:anywhere}.delta-product small{font-size:10px;color:#9dabbe;overflow-wrap:anywhere}
 .delta-product button{white-space:nowrap}
 @media(max-width:750px){.broker-pair{grid-template-columns:1fr}.delta-product{align-items:stretch;flex-direction:column}.broker-explorer{grid-template-columns:1fr}}
+
+
+/* V7 installable mobile app shell — preserve premium navy/champagne-gold UI. */
+[hidden]{display:none!important}
+.mobile-install-btn{font-size:11px;padding:9px 12px;border-color:#aa8b59;color:#e3c58c}
+.mobile-install-btn:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #e6c68d;outline-offset:3px}
+#mobileInstallStatus{padding:12px;border:1px solid #39465b;background:#111c2b;border-radius:10px;line-height:1.65}
+#stoxkartConnectionPanel .hint,#stoxkartConnectionPanel .disclaimer{line-height:1.65;overflow-wrap:anywhere}
+@media(max-width:750px){
+  .sidebar{align-items:stretch;gap:9px;border-bottom:1px solid #2c3544}
+  .sidebar nav{width:100%;flex:1 0 100%;justify-content:flex-start;gap:4px;scrollbar-width:thin;scroll-snap-type:x proximity;padding-bottom:6px}
+  .sidebar .nav{scroll-snap-align:start;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:78px;min-height:50px;padding:7px 9px;font-size:19px}
+  .sidebar .nav span{display:inline;font-size:9px;line-height:1.2;font-weight:650;white-space:nowrap}
+  .topbar{gap:8px}
+  .top-actions{gap:7px}
+  .mobile-install-btn{padding:8px 9px;font-size:10px}
+  #stoxkartConnectionPanel .actions button{white-space:normal;min-height:42px}
+  #stoxkartConnectionPanel .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  #stoxkartConnectionPanel .actions button{width:100%}
+}
+@media(max-width:390px){
+  .sidebar .nav{min-width:75px}
+  #stoxkartConnectionPanel .actions{grid-template-columns:1fr}
+  .mobile-install-btn{padding:7px 8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .primary,.outline,.nav{transition:none}
+}
