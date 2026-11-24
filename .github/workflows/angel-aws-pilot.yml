@@ -6,6 +6,7 @@ on:
       - optionx-angel-aws-pilot-20261124
     paths:
       - 'ops/**'
+      - 'mobile_v8/**'
       - 'market_api.py'
       - 'live_gateway.py'
       - 'angel_gateway.py'
@@ -37,6 +38,8 @@ jobs:
         run: python3 -m unittest -q ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck ops.test_angel_paper_foreground_monitor ops.test_private_dashboard_recovery ops.test_synthetic_live_lifecycle_matrix ops.test_optionx_release_gate_matrix ops.test_https_mobile_access_gate ops.test_angel_private_account_readonly_audit ops.test_paper_health_watchdog
       - name: Combined AWS full offline gate suites (broker calls always mocked)
         run: python3 -m unittest -q live_v7.test_future_safety test_market_api test_angel_gateway test_live_gateway live_v7.test_angel_marketdata live_v7.test_angel_readonly_http live_v7.test_angel_snapshot_contract live_v7.test_extended_offline ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck ops.test_angel_paper_foreground_monitor ops.test_private_dashboard_recovery ops.test_synthetic_live_lifecycle_matrix ops.test_optionx_release_gate_matrix ops.test_https_mobile_access_gate ops.test_angel_private_account_readonly_audit ops.test_paper_health_watchdog
+      - name: Build installable public-readonly Android PWA without packages
+        run: node mobile_v8/build.mjs && node mobile_v8/tests.mjs
       - name: Refuse real-order activation
         run: |
           python3 - <<'PY'
