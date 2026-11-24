@@ -49,7 +49,31 @@
 <section id="page-live" class="page">
  <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
- <div class="panel pad" id="angelGreekRiskPanel">
+ <div class="panel pad" id="autoAtmPanel">
+ <div class="section-bar">
+  <div><h3>Auto ATM + Automatic SL / Target · 2-Trade Safety</h3>
+  <p>Selected Strategy → verified 15m index signal → nearest ATM CE/PE → real broker premium &amp; Greeks → hypothetical stop and target. No manual strike, price or Greek entry.</p></div>
+  <span class="paper-badge">AUTO RESEARCH · LIVE ORDERS LOCKED</span>
+ </div>
+ <div class="disclaimer"><b>Safe automation:</b> At most 2 entry attempts per India day across NIFTY + BANKNIFTY in the NEW shadow policy, including rejected/unknown attempts. The Browser Paper service has a separate per-market limit; the shared production order counter and broker-native exits are not connected. No new real orders can be submitted.</div>
+ <div class="form-grid">
+  <label>Automatic Strategy<select id="autoAtmStrategy">
+    <option value="ORB18">ORB-18 · first 18 × 5-minute opening range (90min)</option>
+    <option value="EMA">EMA 9/21 · 15-minute crossover</option>
+  </select></label>
+ </div>
+ <div class="stat-grid" aria-label="Automatic ATM research status">
+  <div class="panel stat"><div class="stat-label">Next Strategy Check (IST)</div><div class="stat-sub" id="autoAtmNext">Calculating…</div></div>
+  <div class="panel stat"><div class="stat-label">ATM Contract &amp; Premium</div><div class="stat-sub" id="autoAtmContract">Waiting for verified broker signal</div></div>
+  <div class="panel stat"><div class="stat-label">Automatic Stop / Target</div><div class="stat-sub" id="autoAtmExits">Waiting for fresh broker option quote and Greeks</div></div>
+  <div class="panel stat"><div class="stat-label">Daily Trade Slots</div><div class="stat-sub" id="autoAtmSlots">2 maximum · live count unverified · real orders blocked</div></div>
+ </div>
+ <div class="actions"><button type="button" class="outline" id="autoAtmRefresh">Recheck Read-only Broker Signal</button></div>
+ <p id="autoAtmStatus" class="hint" role="status" aria-live="polite">No manual option price needed. Broker owner authentication and separately authorized read-only flags are required; until then data remain unavailable.</p>
+ <p class="hint"><b>Fill-time estimate:</b> <span id="autoAtmFill">Unknown until actual matching and broker execution. A 15-minute signal check is NOT a fill-time estimate.</span></p>
+ <p class="hint">The selected ATM strike, premium and Greeks are read from Angel One, not Yahoo/spot proxies. If no verified signal appears or Broker Data is stale, the screen stays waiting. MARKET/IOC are forbidden in the algo planner. SL-LIMIT may not fill; this is NOT an automated order execution service.</p>
+</div>
+<div class="panel pad" id="angelGreekRiskPanel">
   <div class="section-bar"><div><h3>Option Greeks → Automatic SL &amp; Profit Planner</h3><p>Strategy-aware, tick-aligned hypothetical premium exits for NIFTY / BANKNIFTY CE/PE. Not a live trading order.</p></div><span class="paper-badge">MARKET / IOC BLOCKED · PAPER PREVIEW</span></div>
   <div class="disclaimer"><b>2026 Angel One algo compliance:</b> Do not use MARKET or IOC. Entry is a LIMIT DAY plan; protective exit is a STOPLOSS_LIMIT DAY plan <em>only after verified fill and broker stop-order support</em>. Target SELL LIMIT cannot coexist with a separate stop unless broker-confirmed OCO/reduce-only safety exists. No real order, login or automatic order placement occurs here.</div>
   <p class="hint">Angel One offers an authenticated Option Greeks API (Delta, Gamma, Theta, Vega, IV) for live contracts. Broker Greek fetch is available through a private, disabled-by-default read-only stage only after owner verification; it is not AWS-linked and may return unavailable. Alternatively enter independently checked option chain values. Do not enter any PIN, API key or TOTP here.</p>
