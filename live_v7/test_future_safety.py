@@ -156,3 +156,6 @@ from live_v7.test_angel_readonly_http import AngelReadonlyHttpTests
 
 # GET request headers, mixed cash/NFO filtering, and private diagnostic tests.
 from live_v7.test_angel_readfix import AngelGetRepairTests
+
+# Verify server snapshot JSON and browser-required ownership metadata match.
+from live_v7.test_angel_snapshot_contract import AngelSnapshotContractTests
