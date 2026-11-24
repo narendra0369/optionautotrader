@@ -41,7 +41,7 @@ def _step(label: str, func):
     try:
         func()
     except Exception:
-        print("BLOCKED: " + label + " — see locally generated test diagnostics; real orders OFF", flush=True)
+        print("BLOCKED: " + label + " — check the failing gate; real orders OFF", flush=True)
         raise
     print("PASS: " + label, flush=True)
 
@@ -120,7 +120,7 @@ def broker_once(args) -> int:
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         raise RuntimeError("BROKER_REQUIRES_INTERACTIVE_SSH_TTY")
     # Exactly one credential prompt and one short-lived RAM broker session.
-    from ops.angel_ssh_readonly_pilot import main as broker_pilot_main
+    from ops.angel_batch_readonly import main as broker_pilot_main
     cmd = ["--expected-ip", args.expected_ip, "--connect", "--market", args.market,
            "--side", args.side, "--days", str(args.days), "--paper-preview"]
     if args.strike:
