@@ -20,6 +20,7 @@ from dual_brokers import catalog as broker_catalog, delta_product, delta_product
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
 from live_v7.angel_greeks import angel_selected_contract_greeks
+from live_v7.angel_auto_atm import angel_auto_atm_readonly
 from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
 from live_v7.angel_marketdata import list_contracts as angel_list_contracts, quote_ltp as angel_quote_ltp, historical_15m as angel_candles_15m, MarketDataError
 from live_v7.stoxkart_gateway import (status as stoxkart_status, start as stoxkart_start, complete as stoxkart_complete, disconnect as stoxkart_disconnect, positions as stoxkart_positions, StoxkartAuthError)
@@ -180,6 +181,37 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {'error': str(exc)[:160]})
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
+        if path.path == '/api/v7/angel/auto-atm':
+            # No PIN/API key or account data from public users. Auto ATM only
+            # on separately authenticated, feature-flagged V7 staging.
+            if (self.headers.get('Origin')!=V7_STAGING_ORIGIN
+                or os.getenv('OPTIONX_V7_STAGING_CORS','0')!='1'):
+                return self._json(403,{'error':'PRIVATE_OWNER_STAGING_REQUIRED',
+                                        'canSubmitOrder':False})
+            user=user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401,{'error':'Verified OptionX owner required'})
+            if (os.getenv('OPTIONX_V7_AUTO_ATM_READONLY_ENABLED','0')!='1'
+                or os.getenv('OPTIONX_V7_MARKETDATA_ANGEL_ENABLED','0')!='1'
+                or os.getenv('OPTIONX_V7_GREEKS_ANGEL_ENABLED','0')!='1'):
+                return self._json(423,{'error':'AUTO_ATM_READONLY_NOT_APPROVED',
+                                        'canSubmitOrder':False,'liveOrdersEnabled':False,
+                                        'fillETASeconds':None})
+            params=parse_qs(path.query,keep_blank_values=True)
+            if (set(params)!={'market','strategy'} or
+                any(len(v)!=1 for v in params.values())):
+                return self._json(400,{'error':'Expect exactly one market and strategy'})
+            try:
+                return self._json(200,angel_auto_atm_readonly(
+                  user,params['market'][0],params['strategy'][0]))
+            except MarketDataError as exc:
+                return self._json(
+                  429 if exc.code=='AUTO_ATM_READ_RATE_LIMIT' else
+                  400 if exc.code=='UNSUPPORTED_AUTO_ATM_REQUEST' else 503,
+                  {'error':'Trusted broker automatic ATM preview unavailable',
+                   'diagnosticCode':exc.code,'canSubmitOrder':False,
+                   'liveOrdersEnabled':False,'fillETASeconds':None})
+
         if path.path in ('/api/v7/angel/contracts', '/api/v7/angel/ltp', '/api/v7/angel/candles', '/api/v7/angel/greeks'):
             # Owner-bound, fixed-source NFO market-data reads only. LTP uses the
             # broker's read-only POST endpoint server-side; no order APIs exist.
