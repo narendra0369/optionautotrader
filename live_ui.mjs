@@ -44,7 +44,14 @@ export function mountLive({client, onPage}){
   const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:15000);
   try{
    const res=await fetch(API+path,{...options,headers:{Authorization:'Bearer '+access,...(options.headers||{})},signal:controller.signal,mode:'cors',cache:'no-store'});
-   const data=await res.json();if(!res.ok)throw Error(data.error||'Gateway HTTP '+res.status);return data;
+   const data=await res.json();
+   if(!res.ok){
+    // Only a fixed, non-sensitive error category may be shown from Angel account reads.
+    const diagnostic=path.startsWith('/api/v7/angel/')&&/^[A-Z0-9_]{3,48}$/.test(data.diagnosticCode||'')
+      ?' ['+data.diagnosticCode+']':'';
+    throw Error((data.error||'Gateway HTTP '+res.status)+diagnostic);
+   }
+   return data;
   }finally{clearTimeout(tid);}
  }
  async function status(){
