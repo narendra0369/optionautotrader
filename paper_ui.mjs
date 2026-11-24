@@ -45,7 +45,7 @@ export function mountPaper({client,onPage}){
  };
  const fill=(c)=>{
   $('paperFrame').value=c.timeframe;$('paperStrategyId').value=String(c.strategyId);$('paperCapital').value=c.capital;
-  $('paperRisk').value=c.risk;$('paperDaily').value=c.dailyLoss;$('paperMaxTrades').value=c.maxTrades;
+  $('paperRisk').value=c.risk;$('paperDaily').value=c.dailyLoss;$('paperMaxTrades').value=String(Math.min(2,c.maxTrades));
   $('paperCost').value=c.costBps;$('paperSlippage').value=c.slippageBps;
  };
  async function load(){if(!user||!client)return;
