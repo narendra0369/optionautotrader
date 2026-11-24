@@ -36,6 +36,7 @@ class AngelSnapshotContractTests(unittest.TestCase):
         self.assertEqual(result["trustedAccount"],"OWNER_PROFILE_MATCHED")
         self.assertIs(result["canSubmitOrder"],False)
         self.assertIs(result["orderExecutionEnabled"],False)
+        self.assertIs(result["liveExecutionEnabled"],False)
         self.assertIs(result["quoteAndContractMasterVerified"],False)
         self.assertEqual(result["broker"],"Angel")
         self.assertEqual(result["resource"],"positions")
@@ -55,6 +56,7 @@ class AngelSnapshotContractTests(unittest.TestCase):
         self.assertEqual(result["records"][0]["status"],"OPEN")
         self.assertFalse(result["canSubmitOrder"])
         self.assertFalse(result["orderExecutionEnabled"])
+        self.assertIs(result["liveExecutionEnabled"],False)
 
     def test_unbound_owner_cannot_receive_owner_verified_contract(self):
         with patch.dict(os.environ,{"OPTIONX_OWNER_USER_ID":"someone-else"}), \
