@@ -20,6 +20,7 @@ from dual_brokers import catalog as broker_catalog, delta_product, delta_product
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
 from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
+from live_v7.angel_marketdata import list_contracts as angel_list_contracts, quote_ltp as angel_quote_ltp, MarketDataError
 from live_v7.stoxkart_gateway import (status as stoxkart_status, start as stoxkart_start, complete as stoxkart_complete, disconnect as stoxkart_disconnect, positions as stoxkart_positions, StoxkartAuthError)
 
 MARKETS = {'NIFTY': '^NSEI', 'BANKNIFTY': '^NSEBANK', 'BTC': 'XBTUSD'}
@@ -173,6 +174,38 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {'error': str(exc)[:160]})
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
+        if path.path in ('/api/v7/angel/contracts', '/api/v7/angel/ltp'):
+            # Owner-bound, fixed-source NFO market-data reads only. LTP uses the
+            # broker's read-only POST endpoint server-side; no order APIs exist.
+            if (self.headers.get('Origin') != V7_STAGING_ORIGIN
+                    or os.getenv('OPTIONX_V7_STAGING_CORS', '0') != '1'):
+                return self._json(403, {'error':'Market-data pilot is V7 staging only',
+                                        'liveExecutionEnabled':False,'canSubmitOrder':False})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401, {'error':'Verified OPTIONX owner session required'})
+            if os.getenv('OPTIONX_V7_MARKETDATA_ANGEL_ENABLED', '0') != '1':
+                return self._json(423, {'error':'Angel market-data pilot is disabled',
+                                        'liveExecutionEnabled':False,'canSubmitOrder':False})
+            params=parse_qs(path.query,keep_blank_values=True)
+            allowed = ({'market','side','strike'} if path.path.endswith('/contracts') else {'token'})
+            if any(k not in allowed or len(v)!=1 for k,v in params.items()):
+                return self._json(400, {'error':'Unsupported market-data query parameters'})
+            try:
+                if path.path.endswith('/contracts'):
+                    return self._json(200, angel_list_contracts(
+                        user, params.get('market',[''])[0],params.get('side',[''])[0],
+                        strike=params.get('strike',[None])[0]))
+                return self._json(200, angel_quote_ltp(user,params.get('token',[''])[0]))
+            except MarketDataError as exc:
+                status = (429 if exc.code=='QUOTE_POLL_RATE_LIMIT' else
+                          400 if exc.code in ('INVALID_CONTRACT_FILTER','INVALID_INSTRUMENT_TOKEN',
+                                              'INVALID_INSTRUMENT_NUMBER') else
+                          401 if exc.code=='ANGEL_SESSION_EXPIRED' else 503)
+                return self._json(status, {'error':'Angel NFO market-data read unavailable',
+                                           'diagnosticCode':exc.code,
+                                           'liveExecutionEnabled':False,
+                                           'orderExecutionEnabled':False,'canSubmitOrder':False})
         if path.path in ('/api/v7/angel/orderbook', '/api/v7/angel/positions'):
             # Private broker reads ONLY from the separate V7 staging UI.
             # A valid OPTIONX JWT alone does not grant another website account access.
