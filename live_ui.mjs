@@ -178,8 +178,8 @@ export function mountLive({client, onPage}){
    // a mismatched deployment with a broker authorization failure.
    if(!data||typeof data!=='object'||data.snapshotContract!=='OPTIONX_V7_ANGEL_READONLY_V2')
     throw Error('SNAPSHOT_VERSION_MISMATCH: Browser/backend versions differ. Hard-refresh V7 staging, then retry.');
-   if(data.liveExecutionEnabled!==false)
-    throw Error('SNAPSHOT_LIVE_FLAG_UNTRUSTED: Refusing to display unexpected execution capability.');
+   if(data.liveExecutionEnabled!==false||data.orderExecutionEnabled!==false)
+    throw Error('SNAPSHOT_LIVE_FLAG_UNTRUSTED: Both execution safety flags must be explicitly false.');
    if(data.canSubmitOrder!==false)
     throw Error('SNAPSHOT_ORDER_FLAG_UNTRUSTED: Refusing to display unexpected order permission.');
    if(data.trustedAccount!=='OWNER_PROFILE_MATCHED')
