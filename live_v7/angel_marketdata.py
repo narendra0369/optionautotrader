@@ -7,7 +7,7 @@ contracts. No fabricated spot, price, contract ID or executed fills.
 """
 from __future__ import annotations
 import codecs
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 import io
 import json
@@ -270,4 +270,102 @@ def quote_ltp(user_id, token, *, master_fetch=None, quote_fetch=None, clock=None
         "executionPriceVerified":False,"quoteFreshnessVerified":False,
         "liveExecutionEnabled":False,"orderExecutionEnabled":False,"canSubmitOrder":False,
         "notice":"Read-only indicative last traded price; no exchange timestamp verification, margin or execution permission.",
+    }
+
+
+CANDLES_URL = "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData"
+_LAST_CANDLES = {}
+
+def historical_15m(user_id, token, *, days=3, master_fetch=None, candle_fetch=None, clock=None):
+    """On-demand 15-minute NFO OHLC (up to 7 calendar days), not a fill model.
+
+    Uses broker's fixed historical-candle REST query (POST, read semantics).
+    Rejects invented tokens, unexpected intervals, implausible OHLC, duplicate
+    timestamps, future/incomplete bars and owner/session mismatches.
+    """
+    session = _owner(user_id)
+    if not isinstance(token, str) or not _DIGITS.fullmatch(token):
+        raise MarketDataError("INVALID_INSTRUMENT_TOKEN")
+    if isinstance(days,bool) or not isinstance(days,int) or days not in (1,2,3,5,7):
+        raise MarketDataError("INVALID_CANDLE_WINDOW")
+    master,asof = _get_master(fetch=master_fetch,clock=clock)
+    contract=master.get(token)
+    if not contract:
+        raise MarketDataError("UNVERIFIED_INSTRUMENT_TOKEN")
+    now=time.time() if clock is None else clock
+    with _LOCK:
+        if now - _LAST_CANDLES.get(user_id,0.0) < 10:
+            raise MarketDataError("CANDLE_POLL_RATE_LIMIT")
+        _LAST_CANDLES[user_id]=now
+    ist=ZoneInfo("Asia/Kolkata")
+    end=datetime.fromtimestamp(now,ist)
+    start=end-timedelta(days=days)
+    datestr=lambda x: x.strftime("%Y-%m-%d %H:%M")
+    try:
+        from angel_gateway import angel_client_identity_headers
+        headers={
+            "Accept":"application/json","Content-Type":"application/json",
+            "User-Agent":"OptionX-Angel-CandlesReadonly/1.0",
+            "Authorization":"Bearer "+session["jwt"],"X-PrivateKey":session["apiKey"],
+            "X-UserType":"USER","X-SourceID":"WEB",
+            **angel_client_identity_headers(allow_public_lookup=candle_fetch is None),
+        }
+        body=json.dumps({
+           "exchange":"NFO","symboltoken":contract["token"],
+           "interval":"FIFTEEN_MINUTE",
+           "fromdate":datestr(start),"todate":datestr(end)
+        }).encode()
+        req=urllib.request.Request(CANDLES_URL,data=body,headers=headers,method="POST")
+        response=(candle_fetch(req,timeout=12) if candle_fetch else
+                  urllib.request.build_opener(
+                    NoRedirect(),urllib.request.HTTPSHandler(context=ssl.create_default_context())
+                  ).open(req,timeout=12))
+        with response as handle:
+            raw=handle.read(262145)
+            if getattr(handle,"status",200)!=200 or len(raw)>262144:
+                raise MarketDataError("BROKER_CANDLES_BAD_RESPONSE")
+        result=json.loads(raw)
+    except MarketDataError:
+        raise
+    except (OSError,TimeoutError,urllib.error.URLError,ValueError):
+        raise MarketDataError("BROKER_CANDLES_UNAVAILABLE") from None
+    if not isinstance(result,dict) or result.get("status") is not True:
+        raise MarketDataError("BROKER_CANDLES_REJECTED")
+    data=result.get("data")
+    if not isinstance(data,list) or len(data)>700:
+        raise MarketDataError("BROKER_CANDLES_BAD_FORMAT")
+    bars=[]
+    seen=set()
+    for rawrow in data:
+        if not isinstance(rawrow,list) or len(rawrow)<5 or len(rawrow)>7:
+            raise MarketDataError("BROKER_CANDLES_BAD_FORMAT")
+        try:
+            stamp=datetime.fromisoformat(rawrow[0])
+            if stamp.tzinfo is None:
+                stamp=stamp.replace(tzinfo=ist)
+            ts=int(stamp.timestamp()*1000)
+            o,h,l,c=[_decimal(v) for v in rawrow[1:5]]
+            v=_decimal(rawrow[5],positive=False) if len(rawrow)>5 else Decimal(0)
+        except (TypeError,ValueError,MarketDataError):
+            raise MarketDataError("BROKER_CANDLES_BAD_FORMAT") from None
+        if (ts in seen or h<max(o,c) or l>min(o,c) or l>h or
+            v<0 or h>Decimal("10000000")):
+            raise MarketDataError("BROKER_CANDLES_INVALID_OHLC")
+        seen.add(ts)
+        # Only completed candles can be used for historical research.
+        if ts + 15*60*1000 > int(now*1000)-5000:
+            continue
+        if ts < int(start.timestamp()*1000)-15*60*1000:
+            raise MarketDataError("BROKER_CANDLES_OUTSIDE_WINDOW")
+        bars.append({"time":ts,"open":float(o),"high":float(h),"low":float(l),
+                     "close":float(c),"volume":float(v)})
+    bars.sort(key=lambda x:x["time"])
+    return {
+        "broker":"Angel","source":"Angel SmartAPI historical FIFTEEN_MINUTE",
+        "contract":contract,"timeframe":"15m","bars":bars,"barCount":len(bars),
+        "from":datestr(start),"to":datestr(end),"masterAsOf":asof,
+        "observedAt":datetime.fromtimestamp(now,timezone.utc).isoformat(),
+        "historical":True,"fillPricesVerified":False,"costsOrSlippageIncluded":False,
+        "liveExecutionEnabled":False,"orderExecutionEnabled":False,"canSubmitOrder":False,
+        "notice":"Historical contract OHLC only. No lookahead, executable quote, slippage/charges, margin or order permission."
     }
