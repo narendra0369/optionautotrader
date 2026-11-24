@@ -35,6 +35,8 @@ jobs:
         run: python3 -m unittest -q live_v7.test_future_safety test_market_api
       - name: AWS static IP and Angel SSH pilot tests (fully mocked)
         run: python3 -m unittest -q ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck
+      - name: Combined AWS full offline gate suites (broker calls always mocked)
+        run: python3 -m unittest -q live_v7.test_future_safety test_market_api test_angel_gateway test_live_gateway live_v7.test_angel_marketdata live_v7.test_angel_readonly_http live_v7.test_angel_snapshot_contract live_v7.test_extended_offline ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck
       - name: Refuse real-order activation
         run: |
           python3 - <<'PY'
