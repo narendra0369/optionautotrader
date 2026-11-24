@@ -147,3 +147,6 @@ from live_v7.test_extended_offline import DeepOfflineTests
 
 # V7 Stoxkart official-login integration mocked offline regression cases.
 from live_v7.test_stoxkart import StoxkartOfflineTests
+
+# Stoxkart handler-level origin, auth and no-order HTTP routing tests.
+from live_v7.test_stoxkart_http import StoxkartHttpTests
