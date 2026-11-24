@@ -101,7 +101,7 @@ def select_atm(*, market, side, index_spot, observed_at, now, contracts,
             symbol=c["symbol"]
             lot=c["lotSize"]
             tick=_dec(c["tickSize"],"TICK")
-            if expiry<now_ist.date() or tick>Decimal("100") or
+            if (expiry<now_ist.date() or tick>Decimal("100") or
                 type(lot) is not int or not 1<=lot<=10000 or
                 not isinstance(token,str) or not re.fullmatch(r"\d{2,16}",token) or
                 not isinstance(symbol,str) or not re.fullmatch(r"[A-Z0-9.-]{6,72}",symbol)):
@@ -132,8 +132,8 @@ def paper_greek_exit(*, selected, premium, greeks, strategy, lots=1,
     """
     if strategy not in ("ORB18", "EMA", "IV_DEFENSE"):
         raise AutoATMBlocked("UNSUPPORTED_STRATEGY")
-    if selected.get("realOrdersEnabled") is not False or
-        selected.get("selection")!="nearest_actual_strike_nearest_expiry":
+    if (selected.get("realOrdersEnabled") is not False or
+        selected.get("selection")!="nearest_actual_strike_nearest_expiry"):
         raise AutoATMBlocked("UNVERIFIED_ATM_CONTRACT")
     if type(lots) is not int or not 1<=lots<=12:
         raise AutoATMBlocked("INVALID_LOTS")
