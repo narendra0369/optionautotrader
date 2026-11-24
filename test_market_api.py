@@ -5,6 +5,16 @@ from zoneinfo import ZoneInfo
 from market_api import _valid, _aggregate_4h, get_candles
 
 class FeedTests(unittest.TestCase):
+    def test_mobile_public_cors_least_privilege(self):
+        from market_api import _permitted_origin, V8_MOBILE_PUBLIC_ORIGIN
+        self.assertTrue(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN, '/health'))
+        self.assertTrue(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN, '/api/candles'))
+        for path in ('/api/live/status','/api/v7/angel/positions',
+                     '/api/brokers/angel/connect','/api/live/orders',
+                     '/api/v7/readiness','/api/brokers/angel/status'):
+            self.assertFalse(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN,path))
+        self.assertFalse(_permitted_origin('https://evil.example','/api/candles'))
+
     def test_invalid_ohlc(self):
         self.assertIsNone(_valid(100, 90, 92, 98, 101))
         self.assertIsNone(_valid(100, None, 110, 80, 101))
