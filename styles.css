@@ -54,3 +54,13 @@
 @media(prefers-reduced-motion:reduce){
   .primary,.outline,.nav{transition:none}
 }
+
+/* Greeks SL/Target calculator — responsive live-readiness research UI */
+#angelGreekRiskPanel{border:1px solid #826f4f;background:linear-gradient(130deg,#121d2d,#111b2b)}
+#angelGreekRiskPanel .disclaimer{margin:10px 0 16px}
+#angelGreekRiskPanel .form-grid label{min-width:0}
+#angelGreekRiskPanel input,#angelGreekRiskPanel select{min-height:42px;width:100%;max-width:100%;font-variant-numeric:tabular-nums}
+.greek-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+.greek-results .panel{border:1px solid #435069;padding:14px;border-radius:13px}
+.greek-results strong{display:block;color:#e9cf99;font-size:16px;line-height:1.4;margin-top:8px;overflow-wrap:anywhere}
+@media(max-width:760px){.greek-results{grid-template-columns:1fr}.greek-results .panel{padding:12px}}
