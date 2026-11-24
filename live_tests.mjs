@@ -40,6 +40,8 @@ console.log('PASS: staging-only Angel profile snapshots with server flag, no ord
 assert.ok(ui.includes('OPTIONX_V7_ANGEL_READONLY_V2'));
 assert.ok(ui.includes('SNAPSHOT_VERSION_MISMATCH'));
 assert.ok(ui.includes('SNAPSHOT_OWNER_UNVERIFIED'));
+assert.ok(ui.includes('data.liveExecutionEnabled!==false||data.orderExecutionEnabled!==false'));
+assert.ok(readFileSync('live_v7/read_only_bridge.py','utf8').includes('"liveExecutionEnabled": False')) ;
 assert.ok(readFileSync('live_v7/read_only_bridge.py','utf8').includes('"snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2"'));
 console.log('PASS: client and server enforce matching versioned Angel snapshot contract; no unsafe fallback');
 
