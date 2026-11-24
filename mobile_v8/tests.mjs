@@ -27,6 +27,8 @@ assert.ok(html.includes('href="/manifest.webmanifest"'));
 assert.ok(!html.includes('sb_secret_')&&!html.includes('jwtToken')&&!html.includes('43.204.246.235'));
 assert.ok(!js.includes('localStorage'));
 assert.ok(sw.includes("!allowed.has(pathname)"));
+assert.ok(sw.includes('caches.match(req,{ignoreSearch:true})'));
+
 assert.ok(html.includes('id="connectionNotice"'));
 assert.ok(html.includes('id="marketSelect"'));
 assert.ok(html.includes('id="refreshMarket"'));
