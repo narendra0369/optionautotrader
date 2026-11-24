@@ -52,7 +52,7 @@
  <div class="panel pad" id="angelGreekRiskPanel">
   <div class="section-bar"><div><h3>Option Greeks → Automatic SL &amp; Profit Planner</h3><p>Strategy-aware, tick-aligned hypothetical premium exits for NIFTY / BANKNIFTY CE/PE. Not a live trading order.</p></div><span class="paper-badge">MARKET / IOC BLOCKED · PAPER PREVIEW</span></div>
   <div class="disclaimer"><b>2026 Angel One algo compliance:</b> Do not use MARKET or IOC. Entry is a LIMIT DAY plan; protective exit is a STOPLOSS_LIMIT DAY plan <em>only after verified fill and broker stop-order support</em>. Target SELL LIMIT cannot coexist with a separate stop unless broker-confirmed OCO/reduce-only safety exists. No real order, login or automatic order placement occurs here.</div>
-  <p class="hint">Angel One offers an authenticated Option Greeks API (Delta, Gamma, Theta, Vega, IV) for live contracts. Private AWS → website Greek sync is <b>NOT yet connected</b>; enter your independently checked option chain values to preview the formula. Do not enter any PIN, API key or TOTP here.</p>
+  <p class="hint">Angel One offers an authenticated Option Greeks API (Delta, Gamma, Theta, Vega, IV) for live contracts. Broker Greek fetch is available through a private, disabled-by-default read-only stage only after owner verification; it is not AWS-linked and may return unavailable. Alternatively enter independently checked option chain values. Do not enter any PIN, API key or TOTP here.</p>
   <div class="form-grid">
    <label>Strategy<select id="greek_strategy"><option value="ORB18">ORB-18 Breakout</option><option value="EMA">EMA Trend</option><option value="IV_DEFENSE">High IV / Conservative</option></select></label>
    <label>Option Type<select id="greek_optionType"><option value="CE">CE — Call Buy</option><option value="PE">PE — Put Buy</option></select></label>
@@ -73,7 +73,8 @@
    <label>Scenario IV shock (points)<input type="number" id="greek_ivShock" value="1" min="0" step="any"></label>
    <label>Horizon (minutes)<input type="number" id="greek_minutes" value="15" min="1" max="375" step="1"></label>
   </div>
-  <div class="actions"><button class="primary" type="button" id="greekCalculate">Calculate SL &amp; Target — Preview</button></div>
+  <div class="actions"><button class="outline" type="button" id="greekFetchBroker" disabled>Fetch Option Greeks from Angel One (read-only)</button><button class="primary" type="button" id="greekCalculate">Calculate SL &amp; Target — Preview</button></div>
+  <p id="greekBrokerStatus" role="status" class="hint">Broker option-chain access is disabled unless the signed-in owner session, selected NFO contract and backend read-only Greeks feature have all been verified.</p>
   <div class="greek-results" role="group" aria-label="Greeks derived simulated stop and target">
    <div class="panel"><div class="stat-label">Proposed SELL Stop Trigger</div><strong id="greekStop">—</strong></div>
    <div class="panel"><div class="stat-label">Proposed SELL Target LIMIT</div><strong id="greekTarget">—</strong></div>
