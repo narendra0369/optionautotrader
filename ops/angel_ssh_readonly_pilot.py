@@ -134,6 +134,30 @@ def _safe_login_and_marketdata(args):
         print("ANGEL_COMPLETED_15M_CANDLES: " + str(candles["barCount"])
               + " | timeframe=15m"
               + " | historical_only=true")
+        if args.paper_open or args.paper_observe:
+            from ops.paper_ledger_v1 import PaperError, open_paper, monitor_paper
+            try:
+                if args.paper_open:
+                    saved = open_paper(
+                        args.paper_db, contract, quote, capital=args.paper_capital,
+                        lots=args.paper_lots)
+                    print("PAPER_ENTRY_SAVED: id=" + str(saved["paperTradeId"])
+                          + " symbol=" + saved["contract"]
+                          + " lots=" + str(saved["lots"])
+                          + " qty=" + str(saved["qty"])
+                          + " indicative_entry=" + saved["quoteEntry"]
+                          + " illustrative_SL=" + saved["illustrativeStop"]
+                          + " illustrative_target=" + saved["illustrativeTarget"])
+                    print("PAPER_SAFETY: virtual-only; no real fills; NO unattended monitoring; costs excluded")
+                else:
+                    tick = monitor_paper(args.paper_db, contract, quote)
+                    print("PAPER_OBSERVED: id=" + str(tick["paperTradeId"])
+                          + " ltp=" + tick["quoteLtp"]
+                          + " paper_closed=" + str(tick["paperClosed"])
+                          + " trigger=" + str(tick["trigger"]))
+                    print("PAPER_SAFETY: illustrative quote triggers, not real execution")
+            except PaperError as exc:
+                print("PAPER_RECORD_BLOCKED: " + str(exc))
         if args.paper_preview:
             try:
                 p = paper_preview(contract, quote["ltp"], args.risk, args.reward)
@@ -163,6 +187,12 @@ def main(argv=None) -> int:
     parser.add_argument("--strike", help="Desired option strike; nearby verified contract will be selected")
     parser.add_argument("--days", type=int, choices=(1, 2, 3, 5, 7), default=3)
     parser.add_argument("--paper-preview", action="store_true", help="Calculate one-lot hypothetical paper preview; no position ledger")
+    parser.add_argument("--paper-status", action="store_true", help="Show existing private paper journal without broker credentials")
+    parser.add_argument("--paper-open", action="store_true", help="Explicit virtual-only entry at broker's indicative LTP; no real order")
+    parser.add_argument("--paper-observe", action="store_true", help="Observe one matching position with a fresh indicative LTP; no background monitoring")
+    parser.add_argument("--paper-capital", default="500000", help="Initial virtual capital; fixed at initial journal creation")
+    parser.add_argument("--paper-lots", type=int, default=None, help="Virtual lots, capped by stepped paper risk policy")
+    parser.add_argument("--paper-db", default="/var/lib/optionx-paper/paper-v1.sqlite3", help="Private virtual-only SQLite journal path")
     parser.add_argument("--risk", type=float, default=300, help="Illustrative rupee risk per one-lot preview only")
     parser.add_argument("--reward", type=float, default=600, help="Illustrative rupee reward per one-lot preview only")
     args = parser.parse_args(argv)
@@ -175,6 +205,29 @@ def main(argv=None) -> int:
         # verified target and independently re-verifies all no-orders gates.
         verify_aws_readiness(args.expected_ip)
         print("AWS_ANGEL_PRECHECK_PASSED")
+        if sum(bool(x) for x in (args.paper_status, args.paper_open, args.paper_observe)) > 1:
+            raise PilotError("CHOOSE_ONE_PAPER_OPERATION")
+        if args.paper_status:
+            from ops.paper_ledger_v1 import PaperError, status as paper_status
+            try:
+                state = paper_status(args.paper_db)
+                print("PAPER_LEDGER_STATUS: cash=" + state["realizedEquityBeforeChargesINR"]
+                      + " trades_today=" + str(state["tradesToday"])
+                      + " max_trades=" + str(state["maxTradesPerDay"])
+                      + " open_position=" + str(bool(state["openPosition"])))
+                if state["openPosition"]:
+                    pos = state["openPosition"]
+                    print("PAPER_OPEN_POSITION: id=" + str(pos["id"])
+                          + " symbol=" + pos["symbol"]
+                          + " indicative_entry=" + pos["indicative_entry"]
+                          + " last_observed_ltp=" + str(pos["last_quote"])
+                          + " last_observed_utc=" + str(pos["last_observed_utc"]))
+                print("PAPER_LEDGER_NOTE: no auto monitoring, exchange executions or real orders")
+            except PaperError as exc:
+                raise PilotError("PAPER_STATUS_" + str(exc)) from None
+            return 0
+        if (args.paper_open or args.paper_observe) and not args.connect:
+            raise PilotError("PAPER_POSITION_REQUIRES_INTERACTIVE_BROKER_CONFIRMATION")
         if not args.connect:
             print("NO_BROKER_LOGIN_ATTEMPTED: run with --connect over an interactive SSH TTY")
             return 0
