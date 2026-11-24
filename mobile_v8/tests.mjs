@@ -45,6 +45,6 @@ assert.ok(!js.includes("localStorage"));
 assert.ok(!js.includes("sessionStorage"));
 assert.ok(!js.includes("/api/brokers/angel/connect"));
 assert.ok(!js.includes("/api/live/orders"));
-assert.ok(!js.includes("fetch(PUBLIC_RESEARCH_FEED + path, {"));
+assert.ok(js.includes("fetch(PUBLIC_RESEARCH_FEED + path, {"));
 assert.ok(js.includes("if (!path.startsWith('/health') && !path.startsWith('/api/candles?'))"));
 console.log('OPTIONX_PUBLIC_PWA_TESTS_PASS: 8 online screens, safe HTTPS public feed, no broker API and installable PWA');
