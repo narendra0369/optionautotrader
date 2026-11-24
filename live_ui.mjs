@@ -97,7 +97,7 @@ export function mountLive({client, onPage}){
  }
  async function request(path, options={}){
   const access=await token();
-  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:path.startsWith('/api/v7/angel/contracts')?45000:20000);
+  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:path.startsWith('/api/v7/angel/auto-atm')?65000:path.startsWith('/api/v7/angel/contracts')?45000:20000);
   try{
    const res=await fetch(API+path,{...options,headers:{Authorization:'Bearer '+access,...(options.headers||{})},signal:controller.signal,mode:'cors',cache:'no-store'});
    const data=await res.json();
