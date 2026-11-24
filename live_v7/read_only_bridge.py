@@ -86,6 +86,7 @@ def angel_owner_snapshot(
         "records": normalized,
         "recordCount": len(normalized),
         "trustedAccount": "OWNER_PROFILE_MATCHED",
+        "snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2",
         "quoteAndContractMasterVerified": False,
         "orderExecutionEnabled": False,
         "canSubmitOrder": False,
