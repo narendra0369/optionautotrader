@@ -83,6 +83,23 @@
   <div id="angelReadonlyRows" class="broker-readonly-rows" aria-live="polite"></div>
   <p class="hint">Sensitive account data stays on this page in memory only. The snapshot is fetched on demand and cleared on sign-out/disconnection. No execution price feed, margin check or live order permission is implied.</p>
  </div>
+ <div class="panel pad" id="angelMarketDataPanel">
+  <div class="section-bar"><div><h3>Angel One · Verified NFO Contracts + LTP</h3><p>Current official NIFTY/BANKNIFTY option/future metadata and on-demand indicative last traded price. Read-only market-data pilot; never an execution quote.</p></div><span class="paper-badge">MARKET DATA ONLY · NO ORDERS</span></div>
+  <div class="form-grid">
+   <label>Index market<select id="angelNfoMarket"><option value="NIFTY">NIFTY</option><option value="BANKNIFTY">BANKNIFTY</option></select></label>
+   <label>Contract side<select id="angelNfoSide"><option value="CE">Call (CE)</option><option value="PE">Put (PE)</option><option value="FUT">Futures</option></select></label>
+   <label>Approximate strike (optional)<input id="angelNfoStrike" type="number" min="100" max="500000" step="1" placeholder="e.g. 25000 — enter your desired strike"></label>
+  </div>
+  <div class="actions">
+   <button type="button" class="outline" id="angelNfoLoad" disabled>Load official NFO contracts</button>
+   <button type="button" class="outline" id="angelNfoQuote" disabled>Fetch selected contract LTP</button>
+   <button type="button" class="outline" id="angelNfoClear">Clear market-data preview</button>
+  </div>
+  <p class="hint" role="status" id="angelNfoStatus" aria-live="polite">Verify Angel One owner login in this V7 staging app. Quotes are on demand, not streaming or order-ready.</p>
+  <div id="angelNfoRows" class="delta-contract-list"></div>
+  <p class="hint" id="angelNfoPrice" aria-live="polite">No verified contract selected or quote received.</p>
+  <p class="hint">Master details include contract symbol, expiry, strike, token, broker lot size and tick size. Quote retrieval does NOT establish executable price freshness or margin. No real order routes.</p>
+ </div>
  <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. For V7 staging, owner binding is configured on the separate <b>optionx-v7-offline-test-staging</b> backend. Do not change the production <code>optionx-market-feed</code> Environment or paste broker secrets into Render. This private verification is not a broker trading authorization.</div>
 </div>
  <div class="panel pad" id="stoxkartConnectionPanel">
