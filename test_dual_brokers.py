@@ -1,4 +1,4 @@
-"""Offline regression tests for public two-broker adapter (never send orders)."""
+"""Offline regression tests for public multi-broker adapter (never send orders)."""
 import json
 import unittest
 from unittest.mock import patch
@@ -21,7 +21,10 @@ class TestDualBrokers(unittest.TestCase):
     def test_exact_broker_market_routes(self):
         cs = catalog()
         self.assertEqual(cs['brokers'][0]['markets'], ['NIFTY','BANKNIFTY'])
-        self.assertEqual(cs['brokers'][1]['markets'], ['BTC'])
+        self.assertEqual(cs['brokers'][1]['id'], 'Stoxkart')
+        self.assertEqual(cs['brokers'][1]['markets'], ['NIFTY','BANKNIFTY'])
+        self.assertEqual(cs['brokers'][2]['id'], 'Delta')
+        self.assertEqual(cs['brokers'][2]['markets'], ['BTC'])
         self.assertFalse(cs['liveOrdersEnabled'])
         self.assertFalse(cs['brokerCredentialsStored'])
     def test_symbol_allowlist_and_no_ssrf(self):
