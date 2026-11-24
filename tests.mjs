@@ -49,3 +49,6 @@ console.log('PASS: secure Angel One login form and no-orders UI added');
 
 assert.ok(readFileSync('dist/stoxkart_callback.html','utf8').includes('optionx_stoxkart_callback_token'));
 console.log('PASS: Stoxkart callback published in static dist, no real order routes');
+
+// Broker-rule aware Greeks SL/TP research planner is tested with every website build.
+await import('./greeks_tests.mjs');
