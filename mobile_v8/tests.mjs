@@ -17,6 +17,12 @@ for(const n of [192,512]){
 for(const panel of ['home','strategies','backtests','access'])assert.ok(html.includes('data-panel="'+panel+'"'));
 assert.ok(html.includes('NOT connected'));
 assert.ok(html.includes('NOT live-synced'));
+assert.ok(html.includes('id="daily-angel-connect"'));
+assert.ok(html.includes('https://optionx-v7-frontend-test-staging.onrender.com/#live'));
+assert.ok(html.includes('15-minute in-memory read-only session'));
+assert.ok(html.includes('NOT deployed'));
+assert.ok(!html.includes('name="pin"'));
+
 assert.ok(html.includes('href="/manifest.webmanifest"'));
 assert.ok(!html.includes('sb_secret_')&&!html.includes('jwtToken')&&!html.includes('43.204.246.235'));
 assert.ok(!js.includes('localStorage'));
