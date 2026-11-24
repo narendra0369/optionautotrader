@@ -20,7 +20,10 @@ from live_v7.read_only_transport import (
 
 
 class ReadOnlyBridgeError(ValueError):
-    pass
+    def __init__(self, message: str, diagnostic_code: str = "BROKER_SNAPSHOT_UNAVAILABLE"):
+        super().__init__(message)
+        # Never expose API keys, session tokens, broker account rows or raw errors.
+        self.diagnostic_code = diagnostic_code
 
 
 def angel_owner_snapshot(
@@ -36,7 +39,7 @@ def angel_owner_snapshot(
     flag defaults to OFF. No local secrets or full broker payloads returned.
     """
     if server_feature_flag_enabled is not True:
-        raise ReadOnlyBridgeError("V7 read-only broker inspection is not enabled")
+        raise ReadOnlyBridgeError("V7 read-only broker inspection is not enabled", "FEATURE_DISABLED")
     if resource not in ("orderbook", "positions"):
         raise ReadOnlyBridgeError("Only read-only orderbook and positions supported")
     if not angel_gateway._owner_bound(verified_optionx_user_id):
@@ -46,7 +49,7 @@ def angel_owner_snapshot(
     # its API key or JWT to DB, environment dumps or logs.
     data = angel_gateway._clean_session(verified_optionx_user_id, time.time())
     if not data:
-        raise ReadOnlyBridgeError("No current verified Angel One session")
+        raise ReadOnlyBridgeError("No current verified Angel One session", "SESSION_EXPIRED")
 
     try:
         broker_session = ServerOnlySession(
@@ -63,9 +66,19 @@ def angel_owner_snapshot(
             verified_owner_id=verified_optionx_user_id,
             external_read_authorized_by_server=True,
         )
+        if not isinstance(response, dict) or response.get("status") is not True:
+            # No raw broker message is logged or sent to the client.
+            raise ReadOnlyBridgeError("Angel API rejected the account read",
+                                      "ANGEL_API_REJECTED")
         normalized = angel_orders(response) if resource == "orderbook" else angel_positions(response)
-    except (KeyError, ReadOnlyTransportError, BrokerSnapshotError):
-        raise ReadOnlyBridgeError("Broker inspection unavailable; real orders remain blocked") from None
+    except ReadOnlyBridgeError:
+        raise
+    except ReadOnlyTransportError as exc:
+        raise ReadOnlyBridgeError("Broker read transport is unavailable",
+                                  exc.diagnostic_code) from None
+    except (KeyError, BrokerSnapshotError):
+        raise ReadOnlyBridgeError("Broker returned unexpected NFO snapshot shape",
+                                  "BROKER_DATA_FORMAT") from None
 
     return {
         "broker": "Angel",
