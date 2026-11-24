@@ -49,6 +49,40 @@
 <section id="page-live" class="page">
  <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
+ <div class="panel pad" id="angelGreekRiskPanel">
+  <div class="section-bar"><div><h3>Option Greeks → Automatic SL &amp; Profit Planner</h3><p>Strategy-aware, tick-aligned hypothetical premium exits for NIFTY / BANKNIFTY CE/PE. Not a live trading order.</p></div><span class="paper-badge">MARKET / IOC BLOCKED · PAPER PREVIEW</span></div>
+  <div class="disclaimer"><b>2026 Angel One algo compliance:</b> Do not use MARKET or IOC. Entry is a LIMIT DAY plan; protective exit is a STOPLOSS_LIMIT DAY plan <em>only after verified fill and broker stop-order support</em>. Target SELL LIMIT cannot coexist with a separate stop unless broker-confirmed OCO/reduce-only safety exists. No real order, login or automatic order placement occurs here.</div>
+  <p class="hint">Angel One offers an authenticated Option Greeks API (Delta, Gamma, Theta, Vega, IV) for live contracts. Private AWS → website Greek sync is <b>NOT yet connected</b>; enter your independently checked option chain values to preview the formula. Do not enter any PIN, API key or TOTP here.</p>
+  <div class="form-grid">
+   <label>Strategy<select id="greek_strategy"><option value="ORB18">ORB-18 Breakout</option><option value="EMA">EMA Trend</option><option value="IV_DEFENSE">High IV / Conservative</option></select></label>
+   <label>Option Type<select id="greek_optionType"><option value="CE">CE — Call Buy</option><option value="PE">PE — Put Buy</option></select></label>
+   <label>Algo Order Type<select id="greek_orderType"><option value="LIMIT">LIMIT (allowed as a plan)</option><option value="MARKET" disabled>MARKET — forbidden</option></select></label>
+   <label>Validity<select id="greek_duration"><option value="DAY">DAY</option><option value="IOC" disabled>IOC — forbidden</option></select></label>
+   <label>Verified option premium (₹)<input type="number" id="greek_premium" min="0.05" step="0.05" placeholder="Enter actual CE/PE premium"></label>
+   <label>Broker lot size<input type="number" id="greek_lotSize" min="1" step="1" placeholder="Check official current lot size"></label>
+   <label>Number of lots<input type="number" id="greek_lots" value="1" min="1" step="1"></label>
+   <label>Verified option tick (₹)<input type="number" id="greek_tick" min="0.01" step="0.01" placeholder="From contract master"></label>
+   <label>Maximum planned loss (₹)<input type="number" id="greek_maxRisk" value="300" min="1" step="1"></label>
+   <label>Minimum planned profit (₹)<input type="number" id="greek_reward" value="600" min="1" step="1"></label>
+   <label>Delta (Δ)<input type="number" id="greek_delta" min="-1" max="1" step="any" placeholder="e.g. +0.5 CE / -0.5 PE"></label>
+   <label>Gamma (Γ)<input type="number" id="greek_gamma" min="0" step="any" placeholder="From option Greeks"></label>
+   <label>Theta (Θ)<input type="number" id="greek_theta" step="any" placeholder="Time decay / day assumption"></label>
+   <label>Vega (ν)<input type="number" id="greek_vega" min="0" step="any" placeholder="Sensitivity / IV point assumption"></label>
+   <label>Implied Volatility (%)<input type="number" id="greek_iv" min="0.01" step="any" placeholder="From live option chain"></label>
+   <label>Scenario underlying move (points)<input type="number" id="greek_spotMove" min="0.01" step="any" placeholder="Expected 15m move"></label>
+   <label>Scenario IV shock (points)<input type="number" id="greek_ivShock" value="1" min="0" step="any"></label>
+   <label>Horizon (minutes)<input type="number" id="greek_minutes" value="15" min="1" max="375" step="1"></label>
+  </div>
+  <div class="actions"><button class="primary" type="button" id="greekCalculate">Calculate SL &amp; Target — Preview</button></div>
+  <div class="greek-results" role="group" aria-label="Greeks derived simulated stop and target">
+   <div class="panel"><div class="stat-label">Proposed SELL Stop Trigger</div><strong id="greekStop">—</strong></div>
+   <div class="panel"><div class="stat-label">Proposed SELL Target LIMIT</div><strong id="greekTarget">—</strong></div>
+   <div class="panel"><div class="stat-label">Estimated Premium P&amp;L</div><strong id="greekRiskEstimate">—</strong></div>
+  </div>
+  <p id="greekScenario" class="hint" aria-live="polite">Greek scenario has not been calculated.</p>
+  <p id="greekPlanState" class="hint" role="status" aria-live="polite">Enter verified contract metadata and manually observed Greeks to calculate. This form never sends broker orders.</p>
+  <p class="hint"><b>Limitations:</b> Greeks are sensitivities, not guaranteed execution or returns. Scenario assumes Theta per 375-minute trading day and Vega per 1 IV percentage point; validate the broker conventions. Fees, spread, gaps and slippage can cause greater losses than the estimated amount. Levels change after confirmed fill and live risk checks.</p>
+ </div>
  <div class="stat-grid">
   <div class="panel stat"><div class="stat-label">SECURE GATEWAY</div><div class="stat-sub" id="liveGateway">Checking…</div></div>
   <div class="panel stat"><div class="stat-label">BROKER SESSION</div><div class="stat-sub" id="liveBrokerStatus">Not connected</div></div>
