@@ -14,6 +14,7 @@ HTTPS process ONLY, never a reason to enable real-money order execution.
 from __future__ import annotations
 
 import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 import json
 from zoneinfo import ZoneInfo
@@ -43,7 +44,7 @@ def _jwt_exp(jwt):
         if not (0 < exp < 4_102_444_800):
             return None
         return exp
-    except (ValueError, TypeError, UnicodeDecodeError, OverflowError):
+    except (ValueError, TypeError, UnicodeDecodeError, OverflowError, binascii.Error):
         return None
 
 
