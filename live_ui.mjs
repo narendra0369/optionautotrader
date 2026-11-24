@@ -10,6 +10,7 @@ const formats = {INR: new Intl.NumberFormat('en-IN',{style:'currency',currency:'
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
+ let selectedAngelCandles=null,angelCandleLoading=false;
  const msg=t=>{$('liveStatus').textContent=t};
  const setText=(id,t)=>{$(id).textContent=t};
  function alignMarket(){
@@ -160,8 +161,11 @@ export function mountLive({client, onPage}){
   finally{loadingProducts=false;btn.disabled=!user;}
  }
  function clearAngelMarketData(message='Market-data preview cleared. No orders or quotes submitted for execution.'){
-  selectedAngelContract=null;
+  selectedAngelContract=null;selectedAngelCandles=null;
   $('angelNfoRows').replaceChildren();
+  setText('angelNfoCandleStatus','Contract-specific 15-minute candles have not been fetched.');
+  $('angelNfoCandles').disabled=true;
+  $('angelNfoCsv').disabled=true;
   setText('angelNfoPrice','No verified contract selected or quote received.');
   setText('angelNfoStatus',message);
   $('angelNfoQuote').disabled=true;
@@ -201,7 +205,9 @@ export function mountLive({client, onPage}){
     const select=document.createElement('button');select.type='button';
     select.className='outline';select.textContent='Select for LTP';
     select.addEventListener('click',()=>{
-      selectedAngelContract={...c};$('angelNfoQuote').disabled=false;
+      selectedAngelContract={...c};selectedAngelCandles=null;
+      $('angelNfoQuote').disabled=false;$('angelNfoCandles').disabled=false;$('angelNfoCsv').disabled=true;
+      setText('angelNfoCandleStatus','No candles fetched yet for '+c.symbol+'.');
       setText('angelNfoPrice','Selected '+c.symbol+' · Exchange NFO · No quote fetched yet.');
       setText('angelNfoStatus','Contract selected from verified master. LTP is indicative only; click Fetch selected contract LTP.');
     });
@@ -238,6 +244,52 @@ export function mountLive({client, onPage}){
   }finally{
    angelQuoteLoading=false;await angelStatus();
   }
+ }
+ async function fetchAngel15mCandles(){
+  if(!user||!selectedAngelContract||angelCandleLoading)return;
+  const chosen={...selectedAngelContract};
+  angelCandleLoading=true;$('angelNfoCandles').disabled=true;
+  selectedAngelCandles=null;$('angelNfoCsv').disabled=true;
+  setText('angelNfoCandleStatus','Reading up to 3 calendar days of actual NFO 15-minute historical candles. No order…');
+  try{
+   const data=await request('/api/v7/angel/candles?token='+encodeURIComponent(chosen.token)+'&days=3');
+   if(data.broker!=='Angel'||data.contract?.token!==chosen.token||data.contract?.symbol!==chosen.symbol||
+      data.timeframe!=='15m'||data.canSubmitOrder!==false||data.liveExecutionEnabled!==false||
+      data.orderExecutionEnabled!==false||data.fillPricesVerified!==false||
+      !Array.isArray(data.bars)||!Number.isSafeInteger(data.barCount)||
+      data.barCount!==data.bars.length||data.bars.length>700)
+    throw Error('CONTRACT_15M_DATA_UNTRUSTED');
+   let prev=-1;
+   for(const b of data.bars){
+    if(!Number.isFinite(b.time)||b.time<=prev||!Number.isFinite(b.open)||
+       !Number.isFinite(b.high)||!Number.isFinite(b.low)||!Number.isFinite(b.close)||
+       b.low<=0||b.high<Math.max(b.open,b.close)||b.low>Math.min(b.open,b.close)||
+       !Number.isFinite(b.volume)||b.volume<0)
+      throw Error('CONTRACT_15M_INVALID_BARS');
+    prev=b.time;
+   }
+   selectedAngelCandles={contract:chosen,bars:data.bars.map(b=>({...b}))};
+   $('angelNfoCsv').disabled=data.bars.length===0;
+   setText('angelNfoCandleStatus',data.barCount+' verified-shape historical NFO 15m bars for '+chosen.symbol+
+      ' · '+data.from+' to '+data.to+' IST. '+(data.barCount?'CSV available for research upload.':'No completed candles in window.')+
+      ' Prices are not trade fills; no costs, margin or slippage are modeled.');
+  }catch(e){
+   selectedAngelCandles=null;$('angelNfoCsv').disabled=true;
+   setText('angelNfoCandleStatus','Contract-level historical candles unavailable: '+
+      String(e.message||'Unknown')+'. No synthetic bars or orders.');
+  }finally{angelCandleLoading=false;await angelStatus();}
+ }
+ function exportAngel15mCsv(){
+  if(!user||!selectedAngelCandles||!selectedAngelCandles.bars.length)return;
+  const item=selectedAngelCandles;
+  const lines=['time,open,high,low,close,volume',...item.bars.map(b=>
+    [new Date(b.time).toISOString(),b.open,b.high,b.low,b.close,b.volume].join(','))];
+  const blob=new Blob([lines.join('\n')+'\n'],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'),url=URL.createObjectURL(blob);
+  a.href=url;a.download='angel_nfo_'+item.contract.symbol+'_15m.csv';
+  document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  setText('angelNfoCandleStatus',item.bars.length+' actual broker OHLC bars exported as CSV. Upload in Strategy Lab only for historical research, not live options fills.');
  }
  function clearAngelSnapshot(message='Read-only snapshot cleared. No broker orders sent.'){
   $('angelReadonlyRows').replaceChildren();
@@ -308,6 +360,8 @@ export function mountLive({client, onPage}){
    $('angelReadonlyOrders').disabled=!canInspect;
    $('angelNfoLoad').disabled=!canInspect||angelNfoLoading;
    $('angelNfoQuote').disabled=!canInspect||!selectedAngelContract||angelQuoteLoading;
+   $('angelNfoCandles').disabled=!canInspect||!selectedAngelContract||angelCandleLoading;
+   $('angelNfoCsv').disabled=!canInspect||!selectedAngelCandles||!selectedAngelCandles.bars.length;
    if(!s.connected){
     clearAngelSnapshot('Angel session is inactive or expired. Re-verify to request a fresh read-only snapshot.');
     clearAngelMarketData('Angel session expired. Contract selection and LTP preview cleared.');
@@ -421,6 +475,8 @@ export function mountLive({client, onPage}){
  $('routeBankNifty').addEventListener('change',()=>{if($('liveMarket').value==='BANKNIFTY')alignMarket();});
  $('angelNfoLoad').addEventListener('click',loadAngelNfoContracts);
  $('angelNfoQuote').addEventListener('click',readAngelNfoLtp);
+ $('angelNfoCandles').addEventListener('click',fetchAngel15mCandles);
+ $('angelNfoCsv').addEventListener('click',exportAngel15mCsv);
  $('angelNfoClear').addEventListener('click',()=>clearAngelMarketData());
  $('angelNfoSide').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected side.'));
  $('angelNfoMarket').addEventListener('change',()=>clearAngelMarketData('Choose Load to list contracts for selected market.'));
