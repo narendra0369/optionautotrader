@@ -1,0 +1,59 @@
+name: OptionX AWS Mumbai localhost-only safety
+
+on:
+  push:
+    branches:
+      - optionx-aws-mumbai-bootstrap-20261124
+    paths:
+      - 'ops/**'
+      - 'market_api.py'
+      - 'live_gateway.py'
+      - 'angel_gateway.py'
+      - 'live_v7/**'
+      - 'test_market_api.py'
+      - '.github/workflows/aws-mumbai-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      OPTIONX_REAL_ORDERS_ENABLED: "0"
+      OPTIONX_V7_STAGING_CORS: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate install script syntax
+        run: bash -n ops/bootstrap_aws_mumbai.sh
+      - name: Compile server and import modules
+        run: python3 -m compileall -q market_api.py live_gateway.py angel_gateway.py live_v7 ops/aws_local_market_feed.py
+      - name: Offline safety regression tests
+        run: python3 -m unittest -q live_v7.test_future_safety test_market_api
+      - name: Test localhost bind and hard-locked real orders
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B ops/aws_local_market_feed.py >/tmp/optionx-ci-local.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          sleep 2
+          curl --fail --silent --show-error --max-time 8 http://127.0.0.1:10000/health | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["paperOnly"] is True and x["liveOrdersEnabled"] is False'
+          status=$(curl --silent --output /tmp/optionx-locked-response.json --write-out '%{http_code}' --request POST --max-time 8 http://127.0.0.1:10000/api/live/orders)
+          test "$status" = "423"
+          python3 -c 'import json; x=json.load(open("/tmp/optionx-locked-response.json")); assert x["error"] == "REAL_ORDERS_HARD_LOCKED" and x["orderSent"] is False'
+          python3 - <<'PY'
+          import socket
+          s = socket.socket()
+          try:
+              s.settimeout(2)
+              assert s.connect_ex(("127.0.0.1", 10000)) == 0
+          finally:
+              s.close()
+          print("PASS: loopback research API alive; real orders locked")
+          PY
