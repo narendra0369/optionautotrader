@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime, timezone
+from live_v7.angel_day_session_policy import bounded_readonly_expiry, is_day_scope_allowed
 
 API = 'https://apiconnect.angelone.in'
 LOGIN = '/rest/auth/angelbroking/user/v1/loginByPassword'
@@ -139,6 +140,11 @@ def status(user_id: str, *, now=None) -> dict:
         'connected': bool(session),
         'verifiedAt': session['verifiedAt'] if session else None,
         'expiresAt': datetime.fromtimestamp(session['expires'], timezone.utc).isoformat() if session else None,
+        'readOnlySessionScope': session.get('sessionScope', 'SHORT_READONLY') if session else 'NONE',
+        'temporaryOneLoginReuse': bool(session),
+        'brokerSessionStillValidNotGuaranteed': bool(session),
+        'needsFreshTotp': not bool(session),
+        'connectedToAwsAutoTrading': False,
         'maskedClientCode': session['maskedClientCode'] if session else None,
         'orderExecutionEnabled': False,
         'sessionStorage': 'SERVER_RAM_ONLY',
@@ -179,12 +185,18 @@ def connect(user_id: str, body: dict, *, fetch=None, now=None) -> dict:
     result_client = profile.get('clientcode')
     if not isinstance(result_client, str) or result_client.upper() != client.upper():
         raise AuthError('Broker profile does not match the intended Angel account')
+    # Trading-day scope is disabled by default and REQUIRES a separate
+    # audited, owner-bound private HTTPS AWS gateway. Read-only JWT expiry
+    # is used as a restrictive upper bound, never as proof of broker validity.
+    session_expiry, session_scope = bounded_readonly_expiry(
+        current, jwt, day_policy_requested=is_day_scope_allowed(os.environ))
     verified = datetime.fromtimestamp(current, timezone.utc).isoformat()
     with LOCK:
         _SESSIONS[user_id] = {
             'jwt': jwt, 'apiKey': api_key, 'client': result_client,
             'verifiedAt': verified, 'maskedClientCode': _mask_client(result_client),
-            'expires': current + MAX_SESSION_SECONDS,
+            'expires': session_expiry,
+            'sessionScope': session_scope,
         }
     return status(user_id, now=current)
 
