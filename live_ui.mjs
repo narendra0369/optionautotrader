@@ -4,8 +4,8 @@ const $ = id => document.getElementById(id);
 const API = (location.hostname === 'optionx-v7-frontend-test-staging.onrender.com')
   ? 'https://optionx-v7-offline-test-staging.onrender.com'
   : 'https://optionx-market-feed.onrender.com';
-const DOCS = {Zerodha:'https://kite.trade/docs/connect/v3/',Angel:'https://smartapi.angelone.in/docs',Dhan:'https://dhanhq.co/docs/v2/authentication/',Delta:'https://docs.delta.exchange/'};
-const marketBrokers = {NIFTY:['Angel'],BANKNIFTY:['Angel'],BTC:['Delta']};
+const DOCS = {Zerodha:'https://kite.trade/docs/connect/v3/',Angel:'https://smartapi.angelone.in/docs',Stoxkart:'https://developers.stoxkart.com/api-documentation/login',Dhan:'https://dhanhq.co/docs/v2/authentication/',Delta:'https://docs.delta.exchange/'};
+const marketBrokers = {NIFTY:['Angel','Stoxkart'],BANKNIFTY:['Angel','Stoxkart'],BTC:['Delta']};
 const formats = {INR: new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}),USD:new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2})};
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
@@ -14,6 +14,7 @@ export function mountLive({client, onPage}){
  function alignMarket(){
   const m=$('liveMarket').value,b=$('liveBroker');
   for(const opt of b.options)opt.disabled=!marketBrokers[m].includes(opt.value);
+  if(m!=='BTC')b.value=$(m==='NIFTY'?'routeNifty':'routeBankNifty').value;
   if(!marketBrokers[m].includes(b.value))b.value=marketBrokers[m][0];
   $('liveBrokerDocs').href=DOCS[b.value];
   $('liveCurrency').textContent=m==='BTC'?'USD':'INR';
@@ -40,7 +41,7 @@ export function mountLive({client, onPage}){
  }
  async function request(path, options={}){
   const access=await token();
-  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),path==='/api/brokers/angel/connect'?35000:15000);
+  const controller=new AbortController(),tid=setTimeout(()=>controller.abort(),(path==='/api/brokers/angel/connect'||path==='/api/brokers/stoxkart/complete')?35000:15000);
   try{
    const res=await fetch(API+path,{...options,headers:{Authorization:'Bearer '+access,...(options.headers||{})},signal:controller.signal,mode:'cors',cache:'no-store'});
    const data=await res.json();if(!res.ok)throw Error(data.error||'Gateway HTTP '+res.status);return data;
@@ -101,9 +102,12 @@ export function mountLive({client, onPage}){
    if(error)throw Error(error.message);
    const byMarket=Object.fromEntries((data||[]).map(x=>[x.market,x.broker]));
    const count=Object.keys(byMarket).length;
+   if(['Angel','Stoxkart'].includes(byMarket.NIFTY))$('routeNifty').value=byMarket.NIFTY;
+   if(['Angel','Stoxkart'].includes(byMarket.BANKNIFTY))$('routeBankNifty').value=byMarket.BANKNIFTY;
+   alignMarket();
    $('brokerRoutesStatus').textContent=count
      ?`Saved (${count}/3): NIFTY ${byMarket.NIFTY||'—'} · BANKNIFTY ${byMarket.BANKNIFTY||'—'} · BTC ${byMarket.BTC||'—'}. Routing is not a broker session.`
-     :'No broker routing saved. Save Angel One for indices and Delta for BTC. No keys are stored.';
+     :'No broker routing saved. Choose Angel One or Stoxkart for indices and Delta for BTC. No keys are stored.';
   }catch(e){$('brokerRoutesStatus').textContent='Could not read broker preferences: '+e.message;}
  }
  async function saveRoutes(){
@@ -111,7 +115,7 @@ export function mountLive({client, onPage}){
   const b=$('saveBrokerRoutes');b.disabled=true;
   $('brokerRoutesStatus').textContent='Saving routing labels securely to your signed-in account…';
   try{
-   const assignments=[['NIFTY','Angel'],['BANKNIFTY','Angel'],['BTC','Delta']].map(([market,broker])=>({user_id:user.id,market,broker}));
+   const assignments=[['NIFTY',$('routeNifty').value],['BANKNIFTY',$('routeBankNifty').value],['BTC','Delta']].map(([market,broker])=>({user_id:user.id,market,broker}));
    const {error}=await client.from('optionx_broker_routes').upsert(assignments,{onConflict:'user_id,market'});
    if(error)throw Error(error.message);
    await routes();
@@ -178,6 +182,85 @@ export function mountLive({client, onPage}){
   catch(e){setText('angelAuthStatus','Could not clear local session: '+e.message);}
   await angelStatus();
  }
+
+ async function stoxkartStatus(){
+  if(!user)return;
+  try{
+   const st=await request('/api/brokers/stoxkart/status');
+   setText('stoxkartAccountState',st.connected
+     ?'Stoxkart profile verified · '+st.maskedClientCode+' · expires '+st.expiresAt+' · READ ONLY'
+     :st.pendingLogin?'Stoxkart broker login started · finish the official redirect':'Stoxkart not connected · Real Money Auto Trading OFF');
+   setText('stoxkartAuthStatus',!st.ownerMatch
+     ?'This OptionX login is not bound as the private broker owner.'
+     :st.connected?'Profile matched your Stoxkart Client ID. No order API enabled.':'Owner verified. Create a Stoxkart Superr API app and register the exact callback URL.');
+   $('stoxkartStart').disabled=!st.ownerMatch;
+   $('stoxkartCheck').disabled=!st.ownerMatch;
+   $('stoxkartPositions').disabled=!st.connected;
+   $('stoxkartDisconnect').disabled=!st.ownerMatch||(!st.connected&&!st.pendingLogin);
+  }catch(e){
+   setText('stoxkartAuthStatus','Stoxkart gateway unavailable: '+e.message+' · no real orders');
+   $('stoxkartStart').disabled=true;$('stoxkartPositions').disabled=true;
+  }
+ }
+ async function stoxkartStart(){
+  if(!user||location.hostname!=='optionx-v7-frontend-test-staging.onrender.com')return;
+  const btn=$('stoxkartStart');btn.disabled=true;
+  const body={apiKey:$('stoxkartApiKey').value.trim(),apiSecret:$('stoxkartApiSecret').value,clientCode:$('stoxkartClient').value.trim().toUpperCase()};
+  for(const id of ['stoxkartApiKey','stoxkartApiSecret','stoxkartClient'])$(id).value='';
+  setText('stoxkartAuthStatus','Preparing official Stoxkart login. No trading orders can be placed…');
+  try{
+   const result=await request('/api/brokers/stoxkart/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+   const dest=new URL(result.loginUrl);
+   if(dest.origin!=='https://superrtrade.stoxkart.com'||dest.pathname!=='/login')throw Error('Unexpected broker redirect destination');
+   sessionStorage.setItem('optionx_stoxkart_flow',result.flowId);
+   sessionStorage.removeItem('optionx_stoxkart_callback_token');
+   // Same-tab official broker login preserves flow state across redirects.
+   location.assign(result.loginUrl);
+  }catch(e){setText('stoxkartAuthStatus','Stoxkart login could not start: '+e.message+' · No orders sent.');}
+  finally{body.apiKey=body.apiSecret=body.clientCode='';btn.disabled=false;}
+ }
+ async function stoxkartResume(){
+  const reqToken=sessionStorage.getItem('optionx_stoxkart_callback_token');
+  if(!reqToken)return;
+  const flowId=sessionStorage.getItem('optionx_stoxkart_flow')||'';
+  sessionStorage.removeItem('optionx_stoxkart_callback_token');
+  sessionStorage.removeItem('optionx_stoxkart_flow');
+  setText('stoxkartAuthStatus','Exchanging Stoxkart request token on secure backend; verifying your broker profile…');
+  try{
+   const payload={flowId,requestToken:reqToken};
+   const result=await request('/api/brokers/stoxkart/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   payload.flowId=payload.requestToken='';
+   setText('stoxkartAuthStatus',result.connected?'Stoxkart broker account verified in RAM-only read-only session. NO real orders.':'Stoxkart login not completed.');
+  }catch(e){
+   setText('stoxkartAuthStatus','Stoxkart profile verification failed: '+e.message+' · Retry official broker login. No real orders.');
+  }
+ }
+ async function stoxkartReadPositions(){
+  $('stoxkartPositions').disabled=true;
+  setText('stoxkartPositionsState','Reading your NFO positions using Stoxkart GET-only API…');
+  try{
+   const data=await request('/api/brokers/stoxkart/positions');
+   const rows=Array.isArray(data.positions)?data.positions:[];
+   const text=rows.length?rows.map(r=>'Token '+r.token+': '+r.netQuantity+' net qty').slice(0,8).join(' · '):'No nonzero NFO positions returned.';
+   setText('stoxkartPositionsState',rows.length+' open NFO contract(s). '+text+' · READ ONLY / NO ORDERS.');
+  }catch(e){setText('stoxkartPositionsState','Read-only positions unavailable: '+e.message+' · No orders sent.');}
+  await stoxkartStatus();
+ }
+ async function stoxkartClear(){
+  $('stoxkartDisconnect').disabled=true;
+  sessionStorage.removeItem('optionx_stoxkart_callback_token');
+  sessionStorage.removeItem('optionx_stoxkart_flow');
+  try{await request('/api/brokers/stoxkart/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+   setText('stoxkartAuthStatus','Temporary Stoxkart session cleared. Broker website logout is separate.');
+  }catch(e){setText('stoxkartAuthStatus','Could not clear session: '+e.message);}
+  await stoxkartStatus();
+ }
+ $('stoxkartStart').addEventListener('click',stoxkartStart);
+ $('stoxkartCheck').addEventListener('click',stoxkartStatus);
+ $('stoxkartPositions').addEventListener('click',stoxkartReadPositions);
+ $('stoxkartDisconnect').addEventListener('click',stoxkartClear);
+ $('routeNifty').addEventListener('change',()=>{if($('liveMarket').value==='NIFTY')alignMarket();});
+ $('routeBankNifty').addEventListener('change',()=>{if($('liveMarket').value==='BANKNIFTY')alignMarket();});
  $('angelConnect').addEventListener('click',angelVerify);
  $('angelCheck').addEventListener('click',angelStatus);
  $('angelDisconnect').addEventListener('click',angelClear);
@@ -190,7 +273,10 @@ export function mountLive({client, onPage}){
  $('refreshBrokerRoutes').addEventListener('click',routes);
  $('loadDeltaProducts').addEventListener('click',loadProducts);
  $('liveMarket').addEventListener('change',alignMarket);
- $('liveBroker').addEventListener('change',alignMarket);
+ $('liveBroker').addEventListener('change',()=>{const m=$('liveMarket').value,b=$('liveBroker').value;
+   if(m==='NIFTY'||m==='BANKNIFTY')$(m==='NIFTY'?'routeNifty':'routeBankNifty').value=b;
+   alignMarket();
+  });
  $('liveRefresh').addEventListener('click',()=>{status();v7Readiness();});
  $('liveCheck').addEventListener('click',preview);
  $('livePaper').addEventListener('click',()=>onPage('paper'));
@@ -198,7 +284,9 @@ export function mountLive({client, onPage}){
  return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
     setText('liveGateway','Sign in required');setText('liveBrokerStatus','Not connected');setText('liveOwnerStatus','Not configured');
     setText('v7Readiness','Sign in to inspect development readiness. Real orders remain blocked.');
+    setText('stoxkartAuthStatus','Sign in to OptionX before Stoxkart verification.');setText('stoxkartAccountState','Stoxkart not connected.');
+    for(const id of ['stoxkartStart','stoxkartCheck','stoxkartDisconnect','stoxkartPositions'])$(id).disabled=true;
     setText('angelOwnerId','—');setText('angelAccountState','Angel not connected');setText('angelAuthStatus','Sign in to OPTIONX first');$('angelConnect').disabled=true;$('angelCheck').disabled=true;$('angelDisconnect').disabled=true;$('angelCopyOwnerId').disabled=true;
     setText('livePreview','No live orders; preview only.');$('brokerRoutesStatus').textContent='Sign in to save broker routing.';$('deltaProductsList').replaceChildren();checks();return;
-   }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes(),v7Readiness()]);await angelStatus();},choose};
+   }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes(),v7Readiness()]);await angelStatus();await stoxkartResume();await stoxkartStatus();},choose};
 }
