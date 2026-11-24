@@ -174,10 +174,20 @@ export function mountLive({client, onPage}){
   clearAngelSnapshot('Reading current Angel One '+(resource==='positions'?'NFO positions':'NFO order statuses')+' using GET-only endpoint…');
   try{
    const data=await request('/api/v7/angel/'+resource);
-   if(data.liveExecutionEnabled!==false||data.canSubmitOrder!==false||data.trustedAccount!=='OWNER_PROFILE_MATCHED')
-    throw Error('Broker snapshot failed the read-only ownership checks.');
-   if(data.broker!=='Angel'||data.resource!==resource||!Array.isArray(data.records))
-    throw Error('Unexpected broker snapshot. No values displayed.');
+   // Fail closed with a precise, non-sensitive reason instead of conflating
+   // a mismatched deployment with a broker authorization failure.
+   if(!data||typeof data!=='object'||data.snapshotContract!=='OPTIONX_V7_ANGEL_READONLY_V2')
+    throw Error('SNAPSHOT_VERSION_MISMATCH: Browser/backend versions differ. Hard-refresh V7 staging, then retry.');
+   if(data.liveExecutionEnabled!==false)
+    throw Error('SNAPSHOT_LIVE_FLAG_UNTRUSTED: Refusing to display unexpected execution capability.');
+   if(data.canSubmitOrder!==false)
+    throw Error('SNAPSHOT_ORDER_FLAG_UNTRUSTED: Refusing to display unexpected order permission.');
+   if(data.trustedAccount!=='OWNER_PROFILE_MATCHED')
+    throw Error('SNAPSHOT_OWNER_UNVERIFIED: Broker account assertion is missing.');
+   if(data.broker!=='Angel'||data.resource!==resource||!Array.isArray(data.records)
+      ||!Number.isSafeInteger(data.recordCount)||data.recordCount<0
+      ||data.records.length!==data.recordCount)
+    throw Error('SNAPSHOT_DATA_FORMAT: Unexpected account snapshot structure. No values displayed.');
    const rows=data.records.slice(0,30),panel=$('angelReadonlyRows');
    if(!rows.length){
     clearAngelSnapshot('Broker returned no '+(resource==='positions'?'NFO positions':'NFO orders')+'. Read only; no trading was performed.');
