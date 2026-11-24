@@ -163,7 +163,7 @@ def angel_positions(response: Any) -> list[dict[str, Any]]:
             raise BrokerSnapshotError("Unrecognized Angel position exchange")
         if not isinstance(symbol, str) or not _SYMBOL.fullmatch(symbol):
             raise BrokerSnapshotError("Position symbol invalid")
-         if not isinstance(token, str) or not token:
+        if not isinstance(token, str) or not token:
             raise BrokerSnapshotError("Missing position instrument token")
         key = (exchange, symbol)
         if key in seen:
