@@ -250,7 +250,7 @@ def angel_auto_atm_readonly(user_id,market,strategy,*,now=None,
     try:
         exit_plan=paper_greek_exit(selected=chosen,premium=str(option["ltp"]),
             greeks=greeks["greeks"],strategy=strategy,
-            lots=1,per_lot_risk=300,reward_ratio=2,scenario_points=10,minutes=15)
+            lots=1,per_lot_risk=300,reward_ratio=3,scenario_points=10,minutes=15)
     except AutoATMBlocked as exc:
         raise MarketDataError(str(exc)) from None
     status.update(
