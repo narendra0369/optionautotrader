@@ -151,6 +151,51 @@ export function mountLive({client, onPage}){
   }catch(e){$('deltaProductsStatus').textContent='Delta public feed unavailable: '+e.message+' · No contracts fabricated.';}
   finally{loadingProducts=false;btn.disabled=!user;}
  }
+ function clearAngelSnapshot(message='Read-only snapshot cleared. No broker orders sent.'){
+  $('angelReadonlyRows').replaceChildren();
+  setText('angelReadonlyStatus',message);
+ }
+ async function angelReadonly(resource){
+  if(!user||busy)return;
+  if(location.hostname!=='optionx-v7-frontend-test-staging.onrender.com'){
+   clearAngelSnapshot('Personal broker snapshots are only available on the separate V7 staging website.');
+   return;
+  }
+  if(!['positions','orderbook'].includes(resource))return;
+  const btnId=resource==='positions'?'angelReadonlyPositions':'angelReadonlyOrders';
+  const btn=$(btnId);btn.disabled=true;
+  clearAngelSnapshot('Reading current Angel One '+(resource==='positions'?'NFO positions':'NFO order statuses')+' using GET-only endpoint…');
+  try{
+   const data=await request('/api/v7/angel/'+resource);
+   if(data.liveExecutionEnabled!==false||data.canSubmitOrder!==false||data.trustedAccount!=='OWNER_PROFILE_MATCHED')
+    throw Error('Broker snapshot failed the read-only ownership checks.');
+   if(data.broker!=='Angel'||data.resource!==resource||!Array.isArray(data.records))
+    throw Error('Unexpected broker snapshot. No values displayed.');
+   const rows=data.records.slice(0,30),panel=$('angelReadonlyRows');
+   if(!rows.length){
+    clearAngelSnapshot('Broker returned no '+(resource==='positions'?'NFO positions':'NFO orders')+'. Read only; no trading was performed.');
+    return;
+   }
+   for(const r of rows){
+    if(!r||typeof r.symbol!=='string')throw Error('Unexpected broker record.');
+    const line=document.createElement('div');
+    line.className='delta-product';
+    const label=document.createElement('strong');
+    label.textContent=r.symbol.slice(0,72)+' · '+(resource==='positions'?'NFO position':'NFO order');
+    const values=document.createElement('small');
+    values.textContent=resource==='positions'
+      ?'Net quantity: '+Number(r.net_quantity)
+      :String(r.side)+' · '+String(r.status)+' · filled '+Number(r.filled_quantity)+' / '+Number(r.quantity);
+    line.append(label,values);panel.append(line);
+   }
+   setText('angelReadonlyStatus',data.recordCount+' '+(resource==='positions'?'NFO positions':'NFO orders')
+     +' received from current broker session; showing first '+rows.length+'. Read-only, no orders sent.');
+  }catch(e){
+   clearAngelSnapshot('Angel read-only lookup unavailable: '+String(e.message||'Unknown error')+'. This does not affect Paper mode; real orders remain blocked.');
+  }finally{
+   await angelStatus();
+  }
+ }
  async function angelStatus(){
   if(!user)return;
   try{
@@ -160,7 +205,13 @@ export function mountLive({client, onPage}){
    setText('liveBrokerStatus',s.connected?'Angel profile verified · NO ORDERS':'NO ACTIVE ANGEL SESSION');
    $('angelConnect').disabled=!s.ownerMatch;
    $('angelDisconnect').disabled=!s.connected;
-  }catch(e){setText('angelAuthStatus','Angel session status unavailable: '+e.message);$('angelConnect').disabled=true;}
+   const canInspect=s.ownerMatch===true&&s.connected===true&&location.hostname==='optionx-v7-frontend-test-staging.onrender.com';
+   $('angelReadonlyPositions').disabled=!canInspect;
+   $('angelReadonlyOrders').disabled=!canInspect;
+   if(!s.connected)clearAngelSnapshot('Angel session is inactive or expired. Re-verify to request a fresh read-only snapshot.');
+  }catch(e){setText('angelAuthStatus','Angel session status unavailable: '+e.message);$('angelConnect').disabled=true;
+   $('angelReadonlyPositions').disabled=true;$('angelReadonlyOrders').disabled=true;
+   clearAngelSnapshot('Broker session could not be verified. Snapshot cleared.');}
  }
  async function angelVerify(){
   if(!user)return;
@@ -177,7 +228,7 @@ export function mountLive({client, onPage}){
   finally{body.apiKey=body.pin=body.totp='';btn.disabled=false;}
  }
  async function angelClear(){
-  $('angelDisconnect').disabled=true;
+  $('angelDisconnect').disabled=true;clearAngelSnapshot('Angel session cleared. Read-only snapshot removed.');
   try{await request('/api/brokers/angel/disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});setText('angelAccountState','Local Angel session cleared · no orders sent.');}
   catch(e){setText('angelAuthStatus','Could not clear local session: '+e.message);}
   await angelStatus();
@@ -262,6 +313,9 @@ export function mountLive({client, onPage}){
  $('stoxkartDisconnect').addEventListener('click',stoxkartClear);
  $('routeNifty').addEventListener('change',()=>{if($('liveMarket').value==='NIFTY')alignMarket();});
  $('routeBankNifty').addEventListener('change',()=>{if($('liveMarket').value==='BANKNIFTY')alignMarket();});
+ $('angelReadonlyPositions').addEventListener('click',()=>angelReadonly('positions'));
+ $('angelReadonlyOrders').addEventListener('click',()=>angelReadonly('orderbook'));
+ $('angelReadonlyClear').addEventListener('click',()=>clearAngelSnapshot());
  $('angelConnect').addEventListener('click',angelVerify);
  $('angelCheck').addEventListener('click',angelStatus);
  $('angelDisconnect').addEventListener('click',angelClear);
@@ -288,6 +342,7 @@ export function mountLive({client, onPage}){
     setText('stoxkartAuthStatus','Sign in to OptionX before Stoxkart verification.');setText('stoxkartAccountState','Stoxkart not connected.');
     for(const id of ['stoxkartStart','stoxkartCheck','stoxkartDisconnect','stoxkartPositions'])$(id).disabled=true;
     setText('angelOwnerId','—');setText('angelAccountState','Angel not connected');setText('angelAuthStatus','Sign in to OPTIONX first');$('angelConnect').disabled=true;$('angelCheck').disabled=true;$('angelDisconnect').disabled=true;$('angelCopyOwnerId').disabled=true;
+    $('angelReadonlyPositions').disabled=true;$('angelReadonlyOrders').disabled=true;clearAngelSnapshot('Sign in required. No broker snapshot is retained.');
     setText('livePreview','No live orders; preview only.');$('brokerRoutesStatus').textContent='Sign in to save broker routing.';$('deltaProductsList').replaceChildren();checks();return;
    }setText('angelOwnerId',user.id);$('angelCopyOwnerId').disabled=false;$('angelCheck').disabled=false;await Promise.allSettled([status(),routes(),v7Readiness()]);await angelStatus();await stoxkartResume();await stoxkartStatus();},choose};
 }
