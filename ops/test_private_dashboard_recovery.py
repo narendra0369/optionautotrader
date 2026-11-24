@@ -55,6 +55,30 @@ class PaperDashboardSafetyTests(TestCase):
         self.assertIn("PAPER ONLY", page)
         self.assertIn("not exchange fills", page)
 
+    def test_stale_paper_quotes_mark_virtual_position_unmonitored(self):
+        from datetime import timedelta
+        snap = {
+            "openPosition": {"last_observed_utc": (NOW-timedelta(minutes=6)).isoformat()},
+            "paperPlan": {"illustrativeLots": 12},
+        }
+        health = dashboard.paper_observation_health(snap, now=NOW)
+        self.assertEqual(health["state"], "STALE_OR_UNKNOWN_LOCAL_LTP")
+        self.assertFalse(health["protectedByBroker"])
+        html = dashboard.make_view(snap, now=NOW)
+        self.assertIn("PAPER POSITION NOT MONITORED", html)
+
+    def test_recent_quote_is_not_proof_of_broker_stop(self):
+        snap = {"openPosition": {"last_observed_utc": NOW.isoformat()}}
+        health = dashboard.paper_observation_health(snap, now=NOW)
+        self.assertEqual(health["state"], "RECENT_LOCAL_LTP_ONLY")
+        self.assertFalse(health["continuousMonitoringVerified"])
+        self.assertFalse(health["protectedByBroker"])
+
+    def test_no_open_paper_position_is_not_marked_protected(self):
+        health = dashboard.paper_observation_health({"openPosition": None}, now=NOW)
+        self.assertEqual(health["state"], "NO_POSITION")
+        self.assertFalse(health["protectedByBroker"])
+
     def test_missing_paper_snapshot_has_no_fake_returns(self):
         html = dashboard.make_view(error="UNAVAILABLE", now=NOW)
         self.assertIn("Not available", html)
