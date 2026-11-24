@@ -40,6 +40,20 @@ jobs:
         run: python3 -m unittest -q live_v7.test_future_safety live_v7.test_angel_day_session_policy test_market_api test_angel_gateway test_live_gateway live_v7.test_angel_marketdata live_v7.test_angel_readonly_http live_v7.test_angel_snapshot_contract live_v7.test_extended_offline ops.test_verify_angel_aws_readiness ops.test_angel_ssh_readonly_pilot ops.test_paper_ledger_v1 ops.test_optionx_batch_gatecheck ops.test_angel_paper_foreground_monitor ops.test_private_dashboard_recovery ops.test_synthetic_live_lifecycle_matrix ops.test_optionx_release_gate_matrix ops.test_https_mobile_access_gate ops.test_angel_private_account_readonly_audit ops.test_paper_health_watchdog ops.test_watchdog_systemd_security
       - name: Build installable public-readonly Android PWA without packages
         run: node mobile_v8/build.mjs && node mobile_v8/tests.mjs
+      - name: V8 Angel Buy-Sell, SL-LIMIT, target interlock and crash recovery (no network)
+        run: |
+          python3 -m compileall -q live_v8
+          python3 -m unittest -v live_v8.test_order_rehearsal
+          python3 - <<'PY'
+          from live_v8.angel_order_plans import send_real_order
+          try:
+              send_real_order()
+          except PermissionError as e:
+              assert "REAL_ORDERS_HARD_LOCKED" in str(e)
+              print("PASS: V8 cannot send a real order")
+          else:
+              raise AssertionError("V8 REAL_ORDER_HARD_LOCK_MISSING")
+          PY
       - name: Refuse real-order activation
         run: |
           python3 - <<'PY'
