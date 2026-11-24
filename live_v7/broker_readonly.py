@@ -41,6 +41,10 @@ ANGEL_STATES = {
     "partially filled": "PARTIALLY_FILLED",
 }
 _ALLOWED_EXCHANGES = {"NFO"}
+# SmartAPI account snapshots can contain cash and other segment positions.
+# Ignore recognized NON-NFO records, but reject unknown exchange codes and
+# malformed NFO records. Never interpret cash positions as derivative contracts.
+_NON_NFO_EXCHANGES = {"NSE", "BSE", "BFO", "CDS", "MCX", "NCDEX"}
 _SYMBOL = re.compile(r"^[A-Z0-9._-]{4,72}$")
 _MAX_RECORDS = 500
 
@@ -111,6 +115,10 @@ def angel_orders(response: Any) -> list[dict[str, Any]]:
         exchange = raw.get("exchange")
         side = raw.get("transactiontype")
         raw_state = raw.get("orderstatus", raw.get("status"))
+        if exchange in _NON_NFO_EXCHANGES:
+            continue
+        if exchange not in _ALLOWED_EXCHANGES:
+            raise BrokerSnapshotError("Unrecognized Angel order exchange")
         if not isinstance(order_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{4,96}", order_id):
             raise BrokerSnapshotError("Invalid Angel order ID")
         if order_id in seen:
@@ -118,8 +126,8 @@ def angel_orders(response: Any) -> list[dict[str, Any]]:
         seen.add(order_id)
         if not isinstance(symbol, str) or not _SYMBOL.fullmatch(symbol):
             raise BrokerSnapshotError("Invalid Angel contract symbol")
-        if exchange not in _ALLOWED_EXCHANGES or side not in ("BUY", "SELL"):
-            raise BrokerSnapshotError("Unsupported order exchange or side")
+        if side not in ("BUY", "SELL"):
+            raise BrokerSnapshotError("Unsupported NFO order side")
         qty = _integer(raw.get("quantity"), "quantity")
         filled = _integer(raw.get("filledshares"), "filledshares")
         if qty <= 0 or not 0 <= filled <= qty:
@@ -149,11 +157,13 @@ def angel_positions(response: Any) -> list[dict[str, Any]]:
         symbol = raw.get("tradingsymbol")
         exchange = raw.get("exchange")
         token = raw.get("symboltoken")
+        if exchange in _NON_NFO_EXCHANGES:
+            continue
+        if exchange not in _ALLOWED_EXCHANGES:
+            raise BrokerSnapshotError("Unrecognized Angel position exchange")
         if not isinstance(symbol, str) or not _SYMBOL.fullmatch(symbol):
             raise BrokerSnapshotError("Position symbol invalid")
-        if exchange not in _ALLOWED_EXCHANGES:
-            raise BrokerSnapshotError("Only NFO contracts supported")
-        if not isinstance(token, str) or not token:
+         if not isinstance(token, str) or not token:
             raise BrokerSnapshotError("Missing position instrument token")
         key = (exchange, symbol)
         if key in seen:
