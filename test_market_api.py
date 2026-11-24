@@ -54,3 +54,6 @@ from test_angel_gateway import TestAngelGateway
 
 # Owner-authenticated Angel Option Greeks read-only adapter mock tests.
 from live_v7.test_angel_greeks import AngelGreeksReadOnlyTests
+
+# Owner-gated ATM automation remains paper preview only.
+from live_v7.test_angel_auto_atm import AngelAutoATMTests
