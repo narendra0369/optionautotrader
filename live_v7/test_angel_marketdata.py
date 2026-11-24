@@ -37,6 +37,7 @@ class AngelMarketDataTests(unittest.TestCase):
         with md._LOCK:
             md._CACHE.update(loaded=0,contracts={},asof="")
             md._LAST_QUOTE.clear()
+            md._LAST_CANDLES.clear()
         self.clean=patch("live_v7.angel_marketdata.angel_gateway._clean_session",
                          return_value={"apiKey":"fake-public-api-key","jwt":"x"*50})
         self.owner=patch("live_v7.angel_marketdata.angel_gateway._owner_bound",return_value=True)
@@ -130,6 +131,59 @@ class AngelMarketDataTests(unittest.TestCase):
             with self.assertRaises(md.MarketDataError) as c:
                 md.quote_ltp("owner","111111",master_fetch=master,quote_fetch=getter,clock=CLOCK)
         self.assertEqual(c.exception.code,"QUOTE_POLL_RATE_LIMIT")
+
+    def test_15m_contract_candles_validate_token_interval_ohlc_and_no_fill(self):
+        sample=[["2026-11-24T09:15:00+05:30",101,106,100,104,12345],
+                ["2026-11-24T09:30:00+05:30",104,107,102,106,4321]]
+        def candles(req,timeout):
+            self.assertEqual(req.get_method(),"POST")
+            self.assertEqual(req.full_url,md.CANDLES_URL)
+            self.assertEqual(json.loads(req.data)["interval"],"FIFTEEN_MINUTE")
+            self.assertEqual(json.loads(req.data)["symboltoken"],"111111")
+            return MockQuote(json.dumps({"status":True,"data":sample}).encode())
+        with patch("angel_gateway.angel_client_identity_headers",return_value={}):
+            out=md.historical_15m("owner","111111",days=3,master_fetch=master,
+                                  candle_fetch=candles,clock=CLOCK)
+        self.assertEqual(out["barCount"],2)
+        self.assertEqual(out["timeframe"],"15m")
+        self.assertEqual(out["bars"][0]["open"],101)
+        self.assertEqual(out["bars"][1]["close"],106)
+        self.assertFalse(out["fillPricesVerified"])
+        self.assertFalse(out["liveExecutionEnabled"])
+        self.assertFalse(out["canSubmitOrder"])
+
+    def test_15m_rejects_unverified_contract_without_broker_network(self):
+        with patch("live_v7.angel_marketdata.urllib.request.build_opener") as network:
+            with self.assertRaises(md.MarketDataError) as ctx:
+                md.historical_15m("owner","999999",master_fetch=master,clock=CLOCK)
+            self.assertEqual(ctx.exception.code,"UNVERIFIED_INSTRUMENT_TOKEN")
+            network.assert_not_called()
+
+    def test_15m_incomplete_latest_bar_excluded(self):
+        sample=[["2026-11-24T12:30:00+05:30",101,110,100,102,88]]
+        def candles(req,timeout):
+            return MockQuote(json.dumps({"status":True,"data":sample}).encode())
+        with patch("angel_gateway.angel_client_identity_headers",return_value={}):
+            out=md.historical_15m("owner","111111",days=3,master_fetch=master,
+                                  candle_fetch=candles,clock=CLOCK)
+        self.assertEqual(out["barCount"],0)
+
+    def test_15m_invalid_ohlc_rejected_before_csv(self):
+        sample=[["2026-11-24T09:15:00+05:30",101,98,100,104,0]]
+        def candles(req,timeout):
+            return MockQuote(json.dumps({"status":True,"data":sample}).encode())
+        with patch("angel_gateway.angel_client_identity_headers",return_value={}):
+            with self.assertRaises(md.MarketDataError) as ctx:
+                md.historical_15m("owner","111111",days=3,master_fetch=master,
+                                  candle_fetch=candles,clock=CLOCK)
+        self.assertEqual(ctx.exception.code,"BROKER_CANDLES_INVALID_OHLC")
+
+    def test_15m_bad_window_never_contacts_master_or_broker(self):
+        with patch("live_v7.angel_marketdata._get_master") as lookup:
+            with self.assertRaises(md.MarketDataError) as ctx:
+                md.historical_15m("owner","111111",days=30,clock=CLOCK)
+        self.assertEqual(ctx.exception.code,"INVALID_CANDLE_WINDOW")
+        lookup.assert_not_called()
 
     def test_http_routes_disabled_wrong_origin_and_unauthenticated(self):
         with patch.dict(os.environ,{"OPTIONX_V7_MARKETDATA_ANGEL_ENABLED":"0"}),\
