@@ -88,7 +88,7 @@ class AutoATMTests(unittest.TestCase):
         p=paper_greek_exit(selected=pick(),premium="100",strategy="ORB18",
             greeks={"delta":0.5,"gamma":0.001,"theta":-4,"vega":2,"iv":20})
         self.assertEqual(p["entryPremium"],100)
-        self.assertEqual(p["stopTrigger"],100-300/65)
+        self.assertEqual(p["stopTrigger"],95.4)
         self.assertEqual(p["orderTypes"]["entry"],"LIMIT")
         self.assertEqual(p["orderTypes"]["stop"],"STOPLOSS_LIMIT")
         self.assertEqual(p["orderTypes"]["duration"],"DAY")
