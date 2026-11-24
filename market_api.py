@@ -174,6 +174,12 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self._json(503, {'error': 'Delta India candle provider unavailable; original CSV research remains available.'})
         if path.path in ('/api/v7/angel/orderbook', '/api/v7/angel/positions'):
+            # Private broker reads ONLY from the separate V7 staging UI.
+            # A valid OPTIONX JWT alone does not grant another website account access.
+            if (self.headers.get('Origin') != V7_STAGING_ORIGIN
+                    or os.getenv('OPTIONX_V7_STAGING_CORS', '0') != '1'):
+                return self._json(403, {'error': 'Angel account inspection is staging-owner-only',
+                                        'liveExecutionEnabled': False, 'canSubmitOrder': False})
             user = user_from_token(self.headers.get('Authorization'))
             if not user:
                 return self._json(401, {'error': 'Verified OPTIONX session required'})
@@ -267,7 +273,9 @@ class Handler(BaseHTTPRequestHandler):
             origin = self.headers.get('Origin', '')
             local_allowed = (os.getenv('OPTIONX_LOCAL_ANGEL_TEST', '') == '1' and
                              origin in ('http://localhost:8000', 'http://127.0.0.1:8000'))
-            if origin != ALLOWED_ORIGIN and not local_allowed:
+            staging_allowed = (origin == V7_STAGING_ORIGIN
+                               and os.getenv('OPTIONX_V7_STAGING_CORS', '0') == '1')
+            if origin != ALLOWED_ORIGIN and not staging_allowed and not local_allowed:
                 return self._json(403, {'error': 'Untrusted website origin'})
             if self.headers.get('Content-Type','').split(';')[0].strip().lower() != 'application/json':
                 return self._json(415, {'error': 'JSON required'})
