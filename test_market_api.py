@@ -51,3 +51,6 @@ from test_dual_brokers import TestDualBrokers
 
 # Render Python build imports these additional offline verification tests.
 from test_angel_gateway import TestAngelGateway
+
+# Owner-authenticated Angel Option Greeks read-only adapter mock tests.
+from live_v7.test_angel_greeks import AngelGreeksReadOnlyTests
