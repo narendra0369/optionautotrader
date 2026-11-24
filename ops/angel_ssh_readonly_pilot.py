@@ -157,7 +157,7 @@ def _safe_login_and_marketdata(args):
                           + " trigger=" + str(tick["trigger"]))
                     print("PAPER_SAFETY: illustrative quote triggers, not real execution")
             except PaperError as exc:
-                print("PAPER_RECORD_BLOCKED: " + str(exc))
+                raise PilotError("PAPER_RECORD_BLOCKED_" + str(exc)) from None
         if args.paper_preview:
             try:
                 p = paper_preview(contract, quote["ltp"], args.risk, args.reward)
