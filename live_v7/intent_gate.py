@@ -23,9 +23,9 @@ SESSION_END = time(15, 30)
 MAX_TRADES_PER_DAY_HARD = 2
 
 MARKET_BROKERS = {
-    "NIFTY": ("Angel", "NFO"),
-    "BANKNIFTY": ("Angel", "NFO"),
-    "BTC": ("Delta", "DELTA_INDIA"),
+    "NIFTY": {"Angel": "NFO", "Stoxkart": "NFO"},
+    "BANKNIFTY": {"Angel": "NFO", "Stoxkart": "NFO"},
+    "BTC": {"Delta": "DELTA_INDIA"},
 }
 ALLOWED_INTENT_KEYS = {
     "intent_id", "market", "broker", "action", "symbol", "quantity",
@@ -97,9 +97,12 @@ def evaluate(
         reasons.append("UNKNOWN_INTENT_KEYS")
     market = intent.get("market")
     broker = intent.get("broker")
-    expected = MARKET_BROKERS.get(market)
-    if not expected or broker != expected[0]:
+    allowed = MARKET_BROKERS.get(market)
+    expected_exchange = allowed.get(broker) if isinstance(allowed, dict) and isinstance(broker, str) else None
+    if not expected_exchange:
         reasons.append("MARKET_BROKER_MISMATCH")
+    if broker == "Stoxkart" and trusted.get("stoxkart_unattended_exchange_approval_confirmed") is not True:
+        reasons.append("STOXKART_UNATTENDED_EXCHANGE_APPROVAL_UNVERIFIED")
 
     if intent.get("action") != "ENTRY_BUY":
         # EXIT_SELL needs independently verified holdings and a dedicated
@@ -171,12 +174,12 @@ def evaluate(
 
     multiplier = None
     contract = None
-    if expected:
+    if expected_exchange:
         contract = trusted.get("contract")
         if not isinstance(contract, Mapping):
             reasons.append("CONTRACT_UNVERIFIED")
         else:
-            if contract.get("broker") != broker or contract.get("exchange") != expected[1]:
+            if contract.get("broker") != broker or contract.get("exchange") != expected_exchange:
                 reasons.append("CONTRACT_EXCHANGE_MISMATCH")
             if contract.get("symbol") != symbol:
                 reasons.append("CONTRACT_SYMBOL_MISMATCH")
