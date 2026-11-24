@@ -59,6 +59,7 @@ def _stream_json_array(handle):
     decoder = json.JSONDecoder()
     utf8 = codecs.getincrementaldecoder("utf-8")()
     buffer, index, started, total = "", 0, False, 0
+    need_delimiter, after_comma = False, False
     while True:
         while True:
             while index < len(buffer) and buffer[index].isspace():
@@ -69,11 +70,18 @@ def _stream_json_array(handle):
                     raise MarketDataError("INSTRUMENT_MASTER_FORMAT")
                 started, index = True, index + 1
                 continue
-            while index < len(buffer) and (buffer[index].isspace() or buffer[index] == ","):
+            while index < len(buffer) and buffer[index].isspace():
                 index += 1
             if index >= len(buffer): break
+            if need_delimiter:
+                if buffer[index] == ",":
+                    index += 1
+                    need_delimiter, after_comma = False, True
+                    continue
+                if buffer[index] != "]":
+                    raise MarketDataError("INSTRUMENT_MASTER_FORMAT")
             if buffer[index] == "]":
-                if buffer[index + 1:].strip():
+                if after_comma or buffer[index + 1:].strip():
                     raise MarketDataError("INSTRUMENT_MASTER_FORMAT")
                 return
             if buffer[index] != "{":
@@ -85,6 +93,7 @@ def _stream_json_array(handle):
             if not isinstance(item, dict):
                 raise MarketDataError("INSTRUMENT_MASTER_FORMAT")
             yield item
+            need_delimiter, after_comma = True, False
             index = end
             if index > 64 * 1024:
                 buffer, index = buffer[index:], 0
@@ -175,7 +184,7 @@ def _get_master(*, fetch=None, clock=None):
             raise MarketDataError("INSTRUMENT_MASTER_EMPTY")
     except MarketDataError:
         raise
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, ReadOnlyTransportError):
         raise MarketDataError("INSTRUMENT_MASTER_UNAVAILABLE") from None
     asof = datetime.fromtimestamp(now,timezone.utc).isoformat()
     with _LOCK:
@@ -252,7 +261,7 @@ def quote_ltp(user_id, token, *, master_fetch=None, quote_fetch=None, clock=None
         result=json.loads(raw)
     except MarketDataError:
         raise
-    except (OSError,TimeoutError,urllib.error.URLError,ValueError):
+    except (OSError,TimeoutError,urllib.error.URLError,ValueError,ReadOnlyTransportError):
         raise MarketDataError("BROKER_QUOTE_UNAVAILABLE") from None
     if not isinstance(result,dict) or result.get("status") is not True or not isinstance(result.get("data"),dict):
         raise MarketDataError("BROKER_QUOTE_REJECTED")
@@ -327,7 +336,7 @@ def historical_15m(user_id, token, *, days=3, master_fetch=None, candle_fetch=No
         result=json.loads(raw)
     except MarketDataError:
         raise
-    except (OSError,TimeoutError,urllib.error.URLError,ValueError):
+    except (OSError,TimeoutError,urllib.error.URLError,ValueError,ReadOnlyTransportError):
         raise MarketDataError("BROKER_CANDLES_UNAVAILABLE") from None
     if not isinstance(result,dict) or result.get("status") is not True:
         raise MarketDataError("BROKER_CANDLES_REJECTED")
