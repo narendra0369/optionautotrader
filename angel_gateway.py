@@ -16,12 +16,24 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 API = 'https://apiconnect.angelone.in'
 LOGIN = '/rest/auth/angelbroking/user/v1/loginByPassword'
 PROFILE = '/rest/secure/angelbroking/user/v1/getProfile'
-MAX_SESSION_SECONDS = 15 * 60
+SESSION_TIMEZONE = ZoneInfo('Asia/Kolkata')
+
+
+def trading_day_expiry(now_seconds: float) -> float:
+    """Never keep an Angel read-only login beyond 00:00 IST of its login day.
+
+    This is a local upper limit, NOT proof the broker JWT remains valid.
+    Broker logout, token revocation and worker restart invalidate it sooner.
+    """
+    local = datetime.fromtimestamp(now_seconds, SESSION_TIMEZONE)
+    next_midnight = (local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return next_midnight.timestamp()
 MAX_ATTEMPTS = 3
 ATTEMPT_WINDOW = 15 * 60
 LOCK = threading.Lock()
@@ -142,7 +154,8 @@ def status(user_id: str, *, now=None) -> dict:
         'maskedClientCode': session['maskedClientCode'] if session else None,
         'orderExecutionEnabled': False,
         'sessionStorage': 'SERVER_RAM_ONLY',
-        'notice': 'Temporary broker profile verification only. NO real order methods; static-IP execution approval not verified.'
+        'readOnlySessionScope': 'TRADING_DAY_READONLY',
+        'notice': 'Read-only login is locally capped at midnight IST. Broker may expire it sooner; a server restart loses RAM session. Reauthenticate daily. No real orders.'
     }
 
 
@@ -184,7 +197,7 @@ def connect(user_id: str, body: dict, *, fetch=None, now=None) -> dict:
         _SESSIONS[user_id] = {
             'jwt': jwt, 'apiKey': api_key, 'client': result_client,
             'verifiedAt': verified, 'maskedClientCode': _mask_client(result_client),
-            'expires': current + MAX_SESSION_SECONDS,
+            'expires': trading_day_expiry(current),
         }
     return status(user_id, now=current)
 
