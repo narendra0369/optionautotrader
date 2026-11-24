@@ -3,13 +3,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b111b"><meta name="referrer" content="no-referrer">
 <meta name="description" content="OptionX AI Trader safe public research and virtual paper trading preview">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://optionx-v7-offline-test-staging.onrender.com; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png"><link rel="stylesheet" href="/styles.css">
-<title>OptionX AI Trader | Paper Preview</title></head>
+<title>OptionX AI Trader | Server Connected Android PWA</title></head>
 <body><main class="shell">
-<header class="top"><div class="brand"><span class="monogram">OX</span><span>OPTION<span class="gold">X</span><small>AI TRADER</small></span></div><div class="pill">PAPER • READ-ONLY</div></header>
-<div role="status" class="notice">Public HTTPS mobile preview. Your private Angel One account is NOT connected here.</div>
+<header class="top"><div class="brand"><span class="monogram">OX</span><span>OPTION<span class="gold">X</span><small>AI TRADER</small></span></div><div class="pill">ONLINE • RESEARCH</div></header>
+<div role="status" id="connectionNotice" class="notice">Checking HTTPS public market server… No private broker or AWS account connection.</div>
 <section data-panel="home" class="screen">
 <p class="eyebrow">OPTIONX · SAFE RESEARCH</p><h1>Trading Dashboard</h1>
 <p class="muted">Premium personal trading companion · research staging</p>
@@ -17,11 +17,12 @@
 <p>Verified through private AWS SSH on 24 Nov 2026. <b>NOT live-synced.</b></p></div>
 <div class="cards"><article><span>Virtual Account</span><strong>Initialized</strong></article>
 <article><span>Real Orders</span><strong class="locked">LOCKED</strong></article>
-<article><span>Angel One LTP</span><strong>Not connected</strong></article>
+<article><span>Remote Market Feed</span><strong id="publicFeedState">Checking…</strong></article>
 <article><span>Paper Position</span><strong>Not synced</strong></article></div>
 <div class="callout"><b>Private account protection</b><p>Never enter broker API keys, PIN, TOTP or passwords in this public staging site. Real-money orders stay OFF.</p></div>
-<a class="secondary action" rel="noopener noreferrer" target="_blank" href="https://optionx-v7-frontend-test-staging.onrender.com">Existing public Strategy Lab ↗</a>
+<div class="card"><h2>Full Online Website</h2><p>All actual research features live on the secure OptionX website: charts, CSV upload, 200,000 strategy search, paper auto and reports.</p><a class="primary action" href="https://optionx-200k-strategy-lab.onrender.com/" target="_blank" rel="noopener noreferrer">Open Working OptionX Website ↗</a></div><div class="quick-grid"><button data-go="markets">⌁ Charts</button><button data-go="backtests">▥ Backtest</button><button data-go="paper">◉ Paper</button><button data-go="access">◇ Broker</button></div>
 </section>
+<section data-panel="markets" class="screen" hidden><p class="eyebrow">HTTPS PUBLIC MARKET SERVER</p><h1>Market Charts</h1><p class="muted">Provider OHLC candles only, not execution-grade NSE data or broker option LTP.</p><div class="card"><label class="field">Market<select id="marketSelect"><option value="NIFTY">NIFTY 50</option><option value="BANKNIFTY">BANKNIFTY</option><option value="BTC">BTC/USD Spot</option></select></label><label class="field">Timeframe<select id="timeframeSelect"><option value="1m">1m</option><option value="5m">5m</option><option value="15m" selected>15m</option><option value="30m">30m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option></select></label><button type="button" id="refreshMarket" class="primary">Load Server Candles</button><p id="marketStatus" role="status">No market data loaded.</p><div class="market-number" id="lastMarketClose">—</div><div class="mini-chart" id="miniChart"></div><p id="marketSource">Data provider not loaded.</p><p id="marketStamp">No timestamp.</p></div><a class="secondary action" target="_blank" rel="noopener noreferrer" href="https://optionx-200k-strategy-lab.onrender.com/#markets">Full Interactive Chart ↗</a></section>
 <section data-panel="strategies" class="screen" hidden>
 <p class="eyebrow">STRATEGY CENTER</p><h1>Research Strategies</h1>
 <p class="muted">15-minute NIFTY and BANKNIFTY options · no automatic real trades</p>
@@ -33,6 +34,7 @@
 <p class="eyebrow">BACKTEST LAB</p><h1>Backtesting</h1><p class="muted">Historical option candles and out-of-sample research</p>
 <div class="card"><h2>Data readiness</h2><p>The earlier Angel NIFTY pilot returned just 26 completed 15-minute candles, insufficient for statistically reliable strategy conclusions.</p><div class="tag amber">EXTENDED DATA PENDING</div></div>
 <a class="secondary action" rel="noopener noreferrer" target="_blank" href="https://optionx-v7-frontend-test-staging.onrender.com">Existing public Backtest Workspace ↗</a></section>
+<section data-panel="paper" class="screen" hidden><p class="eyebrow">BROWSER-ACTIVE PAPER SYSTEM</p><h1>Paper Auto</h1><p class="muted">Use the signed-in full OptionX website for working paper Start, Stop, Risk and Ledger. Browser-active paper auto stops when its tab is closed or suspended.</p><div class="hero"><span class="eyebrow">Previously verified AWS virtual capital</span><div class="big">₹5,00,000</div><p>Historical only; NOT live-synced to this public app. No orders are placed from here.</p></div><div class="card"><h2>Open Working Paper Dashboard</h2><p>Access your full virtual simulation controls from anywhere with Internet. Existing AWS paper account remains private and separate.</p><a class="primary action" href="https://optionx-200k-strategy-lab.onrender.com/#paper" target="_blank" rel="noopener noreferrer">Paper Trading Website ↗</a></div></section>
 <section data-panel="access" class="screen" hidden>
 <p class="eyebrow">ACCESS &amp; SAFETY</p><h1>Broker Connections</h1>
 <div class="card"><h2>Angel One · Private AWS</h2><p>Profile, NFO contract and indicative LTP were previously verified privately over AWS SSH. This mobile site has no broker session.</p><div class="tag amber">NOT CONNECTED TO THIS APP</div></div>
@@ -45,10 +47,13 @@
 <div class="card"><h2>Live-money gateway</h2><p>Hard locked. Broker order lifecycle, authenticated owner access, exchange permissions and protective exits are not approved.</p><div class="tag">DISABLED</div></div>
 <div class="card"><h2>Install on Android</h2><p>Open the site in Chrome, choose the menu, then <b>Install app</b> or <b>Add to Home screen</b>. This is a safe read-only mobile app shell, not a broker execution app.</p>
 <button id="install" class="primary" disabled>Install via Chrome menu</button></div></section>
+<section data-panel="live" class="screen" hidden><p class="eyebrow">LIVE EXECUTION PREPARATION</p><h1>Live Safety</h1><div class="card"><h2 class="locked">🔒 REAL ORDERS LOCKED</h2><p>Actual broker Buy/Sell, broker-native stop-loss protection and authenticated AWS owner mobile sync are not certified. Offline tests are not real fills.</p><a class="secondary action" href="https://optionx-v7-frontend-test-staging.onrender.com/#live" target="_blank" rel="noopener noreferrer">Read-only Broker Readiness ↗</a></div></section>
+<section data-panel="more" class="screen" hidden><p class="eyebrow">ALL FEATURES</p><h1>More Tools</h1><p class="muted">Your full website remains online and available anywhere. Choose an area below.</p><div class="stack"><button class="tool-entry" data-go="backtests">▥ Backtest &amp; CSV Upload</button><button class="tool-entry" data-go="access">◇ Broker Connections</button><button class="tool-entry" data-go="live">🔒 Live Readiness</button><a class="tool-entry" href="https://optionx-200k-strategy-lab.onrender.com/#results" target="_blank" rel="noopener noreferrer">◉ Cloud Reports &amp; Exports ↗</a><a class="tool-entry" href="https://optionx-200k-strategy-lab.onrender.com/#account" target="_blank" rel="noopener noreferrer">♙ OptionX Account / Sign In ↗</a></div><div class="card"><h2>Install without USB</h2><p>Open this HTTPS app in Android Chrome, then ⋮ → Install app / Add to Home screen. The installed PWA works anywhere with Internet; offline means cached interface only, no fresh prices.</p><button type="button" class="primary" id="installApp" disabled>Use Chrome Install Menu</button></div></section>
 <nav class="bottom" aria-label="Main navigation">
 <button type="button" class="active" data-nav="home"><span class="navicon">⌂</span><span>Home</span></button>
-<button type="button" data-nav="strategies"><span class="navicon">◎</span><span>Strategies</span></button>
-<button type="button" data-nav="backtests"><span class="navicon">▥</span><span>Backtest</span></button>
-<button type="button" data-nav="access"><span class="navicon">◇</span><span>Access</span></button></nav>
-<footer>V8 public mobile staging · No private data · No broker orders</footer>
+<button type="button" data-nav="markets"><span class="navicon">⌁</span><span>Charts</span></button>
+<button type="button" data-nav="strategies"><span class="navicon">◎</span><span>Strategy</span></button>
+<button type="button" data-nav="paper"><span class="navicon">◉</span><span>Paper</span></button>
+<button type="button" data-nav="more"><span class="navicon">☷</span><span>More</span></button></nav>
+<footer>Online Android PWA · Public research only · Private AWS broker not linked · No real orders</footer>
 </main><script type="module" src="/app.js"></script></body></html>
