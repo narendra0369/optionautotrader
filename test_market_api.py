@@ -71,3 +71,6 @@ from live_v7.test_angel_greeks import AngelGreeksReadOnlyTests
 
 # Owner-gated ATM automation remains paper preview only.
 from live_v7.test_angel_auto_atm import AngelAutoATMTests
+
+# Build-gate: validate offline Angel order request contracts; NEVER transmit them.
+from live_v7.test_angel_order_contracts import AngelOrderContractsTests
