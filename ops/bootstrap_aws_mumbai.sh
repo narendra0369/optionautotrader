@@ -45,10 +45,12 @@ if ! id optionx >/dev/null 2>&1; then
   useradd --system --gid optionx --home-dir /nonexistent --shell /usr/sbin/nologin optionx
 fi
 mv -- "$CANDIDATE" "$APP_DIR"
-chown -R root:root "$APP_DIR"
-# mktemp creates mode 0700; the unprivileged service user needs directory traversal.
-find "$APP_DIR" -type d -exec chmod 0755 {} +
-find "$APP_DIR" -type f -exec chmod go-w {} +
+# Keep source owned by root; grant the service's dedicated group read/traverse only.
+# umask 027 and git's original file permissions may leave 'other' without read
+# permission, causing the unprivileged optionx service to crash at import.
+chown -R root:optionx "$APP_DIR"
+find "$APP_DIR" -type d -exec chmod 0750 {} +
+find "$APP_DIR" -type f -exec chmod g+r,go-w {} +
 
 cat > "$UNIT" <<'UNITFILE'
 [Unit]
