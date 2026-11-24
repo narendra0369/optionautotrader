@@ -29,3 +29,12 @@ assert.ok(api.includes("'/api/brokers/stoxkart/start'"));
 assert.ok(api.includes("'/api/brokers/stoxkart/positions'"));
 assert.ok(gw.includes("'Stoxkart': {'label': 'Stoxkart Superr API'"));
 console.log('PASS: Stoxkart option and official broker-login callback, real orders hard locked');
+assert.ok(html.includes('id="angelReadonlyPositions"')&&html.includes('id="angelReadonlyOrders"'));
+assert.ok(html.includes('id="angelReadonlyRows"')&&html.includes('GET ONLY · REAL ORDERS OFF'));
+assert.ok(ui.includes("'/api/v7/angel/'+resource"));
+assert.ok(ui.includes("location.hostname==='optionx-v7-frontend-test-staging.onrender.com'"));
+assert.ok(api.includes("os.getenv('OPTIONX_V7_READONLY_ANGEL_ENABLED', '0') != '1'"));
+assert.ok(api.includes("self.headers.get('Origin') != V7_STAGING_ORIGIN"));
+assert.ok(!ui.includes("'/api/v7/angel/place"));
+console.log('PASS: staging-only Angel profile snapshots with server flag, no order UI, GET-only contract');
+
