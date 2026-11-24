@@ -37,18 +37,13 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise AuthError('Broker redirected unexpectedly; connection not accepted')
 
 
-def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=None, *, fetch=None) -> dict:
-    if (method, endpoint) not in (('POST', LOGIN), ('GET', PROFILE)):
-        raise AuthError('Unsupported read-only Angel endpoint')
-    if not key or not isinstance(key, str):
-        raise AuthError('Angel API key is required')
+def angel_client_identity_headers(*, allow_public_lookup: bool = True) -> dict[str, str]:
+    """Same network-identification headers for profile and fixed GET-only reads.
+
+    Observed public IP is advisory, NOT proof of a broker-whitelisted static IP.
+    No broker secrets are ever logged, serialized, or returned to a browser.
+    """
     headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-PrivateKey': key,
-        'X-UserType': 'USER',
-        'X-SourceID': 'WEB',
-        'User-Agent': 'OptionX-ReadOnly/6.0',
         'X-ClientLocalIP': '127.0.0.1',
         'X-MACAddress': ':'.join(f'{(uuid.getnode() >> shift) & 255:02x}' for shift in (40, 32, 24, 16, 8, 0)),
     }
@@ -62,7 +57,7 @@ def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=
                 headers['X-ClientPublicIP'] = str(ip)
         except ValueError:
             raise AuthError('Configured Angel IP is invalid')
-    elif fetch is None:
+    elif allow_public_lookup:
         # Match the SDK's observed-public-IP login header best-effort. This
         # never establishes static IP ownership/whitelisting for API orders.
         try:
@@ -74,6 +69,23 @@ def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=
                 headers['X-ClientPublicIP'] = str(public_ip)
         except (urllib.error.URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError):
             pass  # upstream may reject login; never fake a verified IP
+    return headers
+
+
+def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=None, *, fetch=None) -> dict:
+    if (method, endpoint) not in (('POST', LOGIN), ('GET', PROFILE)):
+        raise AuthError('Unsupported read-only Angel endpoint')
+    if not key or not isinstance(key, str):
+        raise AuthError('Angel API key is required')
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-PrivateKey': key,
+        'X-UserType': 'USER',
+        'X-SourceID': 'WEB',
+        'User-Agent': 'OptionX-ReadOnly/6.0',
+        **angel_client_identity_headers(allow_public_lookup=fetch is None),
+    }
     if token:
         headers['Authorization'] = 'Bearer ' + token
     data = json.dumps(payload, separators=(',', ':')).encode() if payload is not None else None
