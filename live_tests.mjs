@@ -37,4 +37,9 @@ assert.ok(api.includes("os.getenv('OPTIONX_V7_READONLY_ANGEL_ENABLED', '0') != '
 assert.ok(api.includes("self.headers.get('Origin') != V7_STAGING_ORIGIN"));
 assert.ok(!ui.includes("'/api/v7/angel/place"));
 console.log('PASS: staging-only Angel profile snapshots with server flag, no order UI, GET-only contract');
+assert.ok(ui.includes('OPTIONX_V7_ANGEL_READONLY_V2'));
+assert.ok(ui.includes('SNAPSHOT_VERSION_MISMATCH'));
+assert.ok(ui.includes('SNAPSHOT_OWNER_UNVERIFIED'));
+assert.ok(readFileSync('live_v7/read_only_bridge.py','utf8').includes('"snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2"'));
+console.log('PASS: client and server enforce matching versioned Angel snapshot contract; no unsafe fallback');
 
