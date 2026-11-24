@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {inflateSync} from 'node:zlib';
 
 const html=readFileSync('index.html','utf8');
 const manifest=JSON.parse(readFileSync('manifest.webmanifest','utf8'));
@@ -25,6 +26,19 @@ for(const n of [192,512]){
   assert.deepEqual([...icon.subarray(0,8)],[137,80,78,71,13,10,26,10]);
   assert.equal(icon.readUInt32BE(16),n);
   assert.equal(icon.readUInt32BE(20),n);
+  let pos=8;const idat=[];let hasPalette=false,hasEnd=false;
+  while(pos<icon.length){
+    const len=icon.readUInt32BE(pos),kind=icon.toString('ascii',pos+4,pos+8);
+    assert.ok(len>=0&&pos+len+12<=icon.length,'Valid PNG chunk length');
+    if(kind==='PLTE')hasPalette=true;
+    if(kind==='IDAT')idat.push(icon.subarray(pos+8,pos+8+len));
+    if(kind==='IEND')hasEnd=true;
+    pos+=len+12;
+  }
+  assert.ok(hasPalette&&hasEnd&&idat.length>0);
+  const inflated=inflateSync(Buffer.concat(idat));
+  assert.equal(inflated.length,n*(Math.ceil(n/8)+1));
+
   assert.ok(manifest.icons.some(x=>x.src===path&&x.sizes===n+'x'+n));
   assert.deepEqual(readFileSync('dist/'+path),icon);
 }
