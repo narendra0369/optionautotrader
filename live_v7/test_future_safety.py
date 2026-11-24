@@ -144,3 +144,6 @@ if __name__ == "__main__":
 
 # Import extended offline cases into the explicit V7 regression entrypoint.
 from live_v7.test_extended_offline import DeepOfflineTests
+
+# V7 Stoxkart official-login integration mocked offline regression cases.
+from live_v7.test_stoxkart import StoxkartOfflineTests
