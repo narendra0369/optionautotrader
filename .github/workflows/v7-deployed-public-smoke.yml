@@ -1,0 +1,33 @@
+name: V7 deployed staging public feed smoke
+
+on:
+  pull_request:
+    branches:
+      - optionx-live-prep-v7-20261124
+    paths:
+      - 'scripts/v7_deployed_readonly_smoke.py'
+      - '.github/workflows/v7-deployed-public-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployed-public-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout without repository token persistence
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile safety script
+        run: python -m py_compile scripts/v7_deployed_readonly_smoke.py
+      - name: Verify real deployed staging health, three public 15m OHLC feeds and live order lock
+        run: python scripts/v7_deployed_readonly_smoke.py
+      - name: No real-money authorization
+        run: echo "Only public read-only endpoints were accessed. Broker order execution remains hard locked."
