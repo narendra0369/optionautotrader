@@ -161,7 +161,7 @@ class Handler(BaseHTTPRequestHandler):
             user = user_from_token(self.headers.get('Authorization'))
             if not user:
                 return self._json(401, {'error': 'Verified OPTIONX session required'})
-            return self._json(200, v7_dev_readiness(angel_status(user)))
+            return self._json(200, v7_dev_readiness(angel_status(user), stoxkart_status(user)))
         if path.path == '/api/live/capabilities': return self._json(200, capabilities())
         if path.path == '/api/brokers/delta/candles':
             qs = parse_qs(path.query)
