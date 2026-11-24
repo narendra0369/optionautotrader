@@ -346,12 +346,31 @@ export function mountLive({client, onPage}){
    await angelStatus();
   }
  }
+ // Mobile-friendly session clock. Only server expiry metadata are used.
+ // No broker PIN, TOTP, JWT or API key is saved in browser storage.
+ function angelSessionSummary(s){
+  if(!s || s.connected !== true)return 'Not connected / session expired';
+  const expires = Date.parse(s.expiresAt || '');
+  if(!Number.isFinite(expires))return 'Connected, expiry unknown; recheck backend';
+  const remaining = Math.max(0, Math.ceil((expires - Date.now()) / 60000));
+  const local = new Date(expires).toLocaleTimeString('en-IN',{
+   timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:true});
+  const scope = s.readOnlySessionScope === 'TRADING_DAY_READONLY'
+   ? 'Day-capped read-only' : '15-minute read-only';
+  return scope+' · '+remaining+' min remaining · expires '+local+' IST';
+ }
  async function angelStatus(){
   if(!user)return;
   try{
    const s=await request('/api/brokers/angel/status');
-   setText('angelAccountState',s.connected?`Angel One profile verified · ${s.maskedClientCode} · ${s.verifiedAt} · expires ${s.expiresAt} · READ ONLY`:'Angel not connected · session expired or not verified · LIVE ORDERS LOCKED');
-   setText('angelAuthStatus',!s.ownerConfigured?'Owner binding required: copy the OPTIONX ID below and set OPTIONX_OWNER_USER_ID in the market-feed Render Environment.':!s.ownerMatch?'This login is not authorized as the personal broker owner.':'Owner verified. Only 3 login attempts per 15 minutes. Broker PIN/TOTP are never stored.');
+   setText('angelAccountState',s.connected
+    ?'Angel One profile verified · '+s.maskedClientCode+' · '+angelSessionSummary(s)+' · READ ONLY / NO AWS AUTO ORDERS'
+    :'Angel not connected · enter Client Code, API Key, PIN and fresh TOTP once per session · LIVE ORDERS LOCKED');
+   setText('angelAuthStatus',!s.ownerConfigured
+    ?'Owner binding required on this staging backend. Login is unavailable until independently authorized.'
+    :!s.ownerMatch?'This login is not authorized as the personal broker owner.'
+    :s.connected?'One login is reusable while broker and local session remain valid. '+angelSessionSummary(s)+'. No PIN/TOTP stored; no real orders.'
+    :'Owner verified. Enter details once, then re-authenticate on expiry. Limit: 3 attempts per 15 minutes. Broker PIN/TOTP never stored.');
    setText('liveBrokerStatus',s.connected?'Angel profile verified · NO ORDERS':'NO ACTIVE ANGEL SESSION');
    $('angelConnect').disabled=!s.ownerMatch;
    $('angelDisconnect').disabled=!s.connected;
@@ -483,6 +502,13 @@ export function mountLive({client, onPage}){
  $('angelReadonlyPositions').addEventListener('click',()=>angelReadonly('positions'));
  $('angelReadonlyOrders').addEventListener('click',()=>angelReadonly('orderbook'));
  $('angelReadonlyClear').addEventListener('click',()=>clearAngelSnapshot());
+ // On mobile, resume to a fresh status without silently re-using secrets.
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && user) angelStatus().catch(()=>{});
+ });
+ setInterval(()=>{
+  if(user && !document.hidden) angelStatus().catch(()=>{});
+ }, 60_000);
  $('angelConnect').addEventListener('click',angelVerify);
  $('angelCheck').addEventListener('click',angelStatus);
  $('angelDisconnect').addEventListener('click',angelClear);
