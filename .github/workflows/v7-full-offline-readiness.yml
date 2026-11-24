@@ -1,0 +1,53 @@
+name: OptionX V7 full offline readiness (no broker orders)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - optionx-live-prep-v7-20261124
+    paths:
+      - 'live_v7/**'
+      - 'angel_gateway.py'
+      - 'market_api.py'
+      - 'live_gateway.py'
+      - '.github/workflows/v7-full-offline-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      OPTIONX_REAL_ORDERS_ENABLED: "0"
+      OPTIONX_V7_READONLY_ANGEL_ENABLED: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONNOUSERSITE: "1"
+      PYTHONPATH: "${{ github.workspace }}"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fail if live order gate can be enabled
+        run: |
+          python - <<'PY'
+          from live_gateway import hard_block_order, capabilities
+          from live_v7.kill_switch import startup_state
+          assert capabilities()['orderExecutionEnabled'] is False
+          assert hard_block_order()['orderSent'] is False
+          assert startup_state().live_execution_enabled is False
+          print('PASS: real broker order gateway hard locked')
+          PY
+      - name: Syntax check
+        run: python -m compileall -q live_v7 angel_gateway.py market_api.py live_gateway.py
+      - name: Full V7 isolated offline regression
+        run: python -m unittest discover -s live_v7 -t . -p 'test_*.py' -v
+      - name: Final security assertion
+        if: always()
+        run: |
+          echo "Tests are offline/mock checks only."
+          echo "No production deploy, no broker authorization, no live order submission."
