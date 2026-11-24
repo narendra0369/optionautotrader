@@ -20,7 +20,7 @@ SNAPSHOT={
     'records':[{'symbol':'NIFTY27NOV26CE','exchange':'NFO','instrumentToken':'safe-token',
                 'net_quantity':2}],
     'recordCount':1,'trustedAccount':'OWNER_PROFILE_MATCHED',
-    'liveExecutionEnabled':False,'canSubmitOrder':False,
+    'liveExecutionEnabled':False,'orderExecutionEnabled':False,'canSubmitOrder':False,
     'quoteAndContractMasterVerified':False,
 }
 
@@ -58,7 +58,8 @@ class AngelReadonlyHttpTests(unittest.TestCase):
             verified_optionx_user_id='verified-owner',resource='positions',
             server_feature_flag_enabled=True)
         self.assertFalse(body['canSubmitOrder'])
-        self.assertFalse(body['liveExecutionEnabled'])
+        self.assertIs(body['liveExecutionEnabled'],False)
+        self.assertIs(body['orderExecutionEnabled'],False)
         self.assertEqual(body['records'][0]['net_quantity'],2)
         self.assertEqual(headers.get('Access-Control-Allow-Origin'),STAGING)
         self.assertNotIn('apiKey',str(body))
