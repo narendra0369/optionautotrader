@@ -72,6 +72,17 @@
  <div class="actions"><button type="button" class="primary" id="angelConnect" disabled>Verify Angel login (read-only)</button><button type="button" class="outline" id="angelCheck" disabled>Check session</button><button type="button" class="outline" id="angelDisconnect" disabled>Clear temporary session</button></div>
  <p class="hint" id="angelAuthStatus" role="status">Sign in to OPTIONX and configure private owner binding before testing broker login.</p>
  <p class="hint" id="angelAccountState">Angel One not linked · Live orders are disabled.</p>
+ <div class="panel pad" id="angelReadonlyPanel">
+  <div class="section-bar"><div><h3>Angel One · Read-Only Account Snapshot (V7)</h3><p>View verified NFO positions and order statuses. No order placement, no token export, no quotes or P&amp;L calculations.</p></div><span class="paper-badge">GET ONLY · REAL ORDERS OFF</span></div>
+  <div class="actions">
+   <button id="angelReadonlyPositions" type="button" class="outline" disabled>View NFO Positions</button>
+   <button id="angelReadonlyOrders" type="button" class="outline" disabled>View NFO Order Book</button>
+   <button id="angelReadonlyClear" type="button" class="outline">Clear Snapshot</button>
+  </div>
+  <p class="hint" id="angelReadonlyStatus" role="status" aria-live="polite">Sign in to OptionX, verify Angel One, then use the staging read-only inspection. Backend safety flag is OFF by default.</p>
+  <div id="angelReadonlyRows" class="broker-readonly-rows" aria-live="polite"></div>
+  <p class="hint">Sensitive account data stays on this page in memory only. The snapshot is fetched on demand and cleared on sign-out/disconnection. No execution price feed, margin check or live order permission is implied.</p>
+ </div>
  <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. In Render → <b>optionx-market-feed</b> → Environment, set <code>OPTIONX_OWNER_USER_ID</code> to that ID (no PIN or secret in this setting). Wait until the backend redeploys, then verify the login. This private verification is not a broker trading authorization.</div>
 </div>
  <div class="panel pad" id="stoxkartConnectionPanel">
