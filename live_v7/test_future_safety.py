@@ -159,3 +159,6 @@ from live_v7.test_angel_readfix import AngelGetRepairTests
 
 # Verify server snapshot JSON and browser-required ownership metadata match.
 from live_v7.test_angel_snapshot_contract import AngelSnapshotContractTests
+
+# No-network tests for exact NFO contract master, on-demand LTP, ownership and no-order gates.
+from live_v7.test_angel_marketdata import AngelMarketDataTests
