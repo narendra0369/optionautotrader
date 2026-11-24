@@ -15,6 +15,20 @@ class FeedTests(unittest.TestCase):
             self.assertFalse(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN,path))
         self.assertFalse(_permitted_origin('https://evil.example','/api/candles'))
 
+    def test_v7_staging_paper_public_endpoints_only(self):
+        from market_api import _permitted_origin, V7_STAGING_ORIGIN
+        with patch.dict('os.environ', {'OPTIONX_V7_STAGING_CORS': '0'}):
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/health'))
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/api/candles'))
+            for private in ('/api/v7/angel/positions',
+                            '/api/v7/angel/orderbook',
+                            '/api/v7/angel/auto-atm',
+                            '/api/live/status'):
+                self.assertFalse(_permitted_origin(V7_STAGING_ORIGIN, private))
+        with patch.dict('os.environ', {'OPTIONX_V7_STAGING_CORS': '1'}):
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/api/v7/angel/positions'))
+        self.assertFalse(_permitted_origin('https://untrusted.example', '/api/candles'))
+
     def test_invalid_ohlc(self):
         self.assertIsNone(_valid(100, 90, 92, 98, 101))
         self.assertIsNone(_valid(100, None, 110, 80, 101))
