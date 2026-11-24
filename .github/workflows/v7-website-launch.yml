@@ -1,0 +1,88 @@
+name: OptionX V7 website launch verification
+
+on:
+  pull_request:
+    branches:
+      - optionx-live-prep-v7-20261124
+    paths:
+      - '*.mjs'
+      - '*.html'
+      - '*.css'
+      - 'icons/**'
+      - 'live_v7/**'
+      - 'market_api.py'
+      - 'live_gateway.py'
+      - '.github/workflows/v7-website-launch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  website-build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPTIONX_REAL_ORDERS_ENABLED: "0"
+      OPTIONX_V7_READONLY_ANGEL_ENABLED: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate website sources
+        run: |
+          node --check live_ui.mjs
+          node --check app.mjs
+          node --check engine.mjs
+          python -m compileall -q live_v7 market_api.py angel_gateway.py live_gateway.py
+      - name: Execute complete existing website build tests and package assets
+        run: |
+          node tests.mjs
+          mkdir -p dist
+          cp index.html styles.css app.mjs engine.mjs engine.worker.mjs live_ui.mjs dist/
+      - name: Check publish assets, navigation and order safety
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from live_gateway import capabilities, hard_block_order
+          root=Path('dist')
+          for item in ('index.html','styles.css','app.mjs','engine.mjs','engine.worker.mjs','live_ui.mjs','paper_ui.mjs','paper_engine.mjs','chart.mjs','manifest.webmanifest','sw.js','offline.html','icons/optionx-192.png','icons/optionx-512.png'):
+              assert (root/item).is_file(), f'MISSING PUBLISHED ASSET: {item}'
+          html=(root/'index.html').read_text(encoding='utf-8')
+          for section in ('page-dashboard','page-markets','page-paper','page-live','page-lab','page-results','page-account'):
+              assert f'id="{section}"' in html, f'MISSING NAVIGATION: {section}'
+          assert capabilities()['orderExecutionEnabled'] is False
+          assert hard_block_order()['orderSent'] is False
+          print('PASS: V7 website assets, seven pages, and hard-locked real orders')
+          PY
+      - name: Local HTTP preview smoke test
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory dist >/tmp/optionx_http_smoke.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import time
+          from urllib.request import urlopen
+          for _ in range(30):
+              try:
+                  with urlopen('http://127.0.0.1:8765/', timeout=2) as r:
+                      assert r.status == 200 and b'OPTIONX' in r.read()
+                  break
+              except OSError:
+                  time.sleep(.2)
+          else: raise AssertionError('Website server did not start')
+          for asset in ('/styles.css','/app.mjs','/live_ui.mjs','/paper_ui.mjs','/manifest.webmanifest'):
+              with urlopen('http://127.0.0.1:8765'+asset, timeout=3) as r:
+                  assert r.status == 200 and len(r.read()) > 0, asset
+          print('PASS: HTTP 200 for index and required JavaScript/style/PWA assets')
+          PY
+      - name: Confirm research-only release mode
+        run: |
+          echo "Staging website readiness test only. Does not publish a site or authorize broker trading."
