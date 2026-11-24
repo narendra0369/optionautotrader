@@ -42,3 +42,10 @@ Do NOT add or turn on live order submission until independently verifying:
 Official docs:
 https://smartapi.angelone.in/docs
 https://smartapi.angelone.in/exchange-regulations
+
+## Confirmed operator broker pilot outcome — 2026-11-24
+- Operator reports the user-run AWS Mumbai SSH-only pilot returned ANGEL_PROFILE_VERIFIED connected=True, with masked client suffix (no identity or secrets retained in documentation).
+- NIFTY 01 Dec 2026 26000 CE, token 47895, lot size 65; indicative LTP ₹62.15 at 2026-11-24 16:30:46 UTC; 26 completed 15-minute historical candles. These are a point-in-time pilot response, not current market prices or independently exchange-timestamped quotes.
+- Pilot reported illustrative one-lot stop ₹57.55 and target ₹71.40, theoretical loss ₹299 and gain ₹601.25 **before charges and slippage**. No paper position had been persisted during that pilot and no real orders were placed. Broker login was discarded at exit.
+- Subsequent isolated source work added a private paper-only SQLite journal and an explicit human-driven one-shot quote observation tool, with its own offline tests in this branch. This does NOT establish continuously running auto-paper, public HTTPS broker login, broker order lifecycle, real-money API order approval or live order permission.
+- The Windows OptionX_Angel_Paper_Ledger_V2.zip launcher installs two NEW source files without overwriting the original first pilot or the existing systemd service. It defaults to a single illustrative virtual lot. Local operator installation and live paper journal operations have not yet been confirmed.
