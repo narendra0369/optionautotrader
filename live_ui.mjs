@@ -665,8 +665,101 @@ export function mountLive({client, onPage}){
    $('greek_'+k).addEventListener('change',recalcGreeks);
  }
 
+
+ // V10: Zero-manual-input ATM research autoplan. Official broker 15m index
+ // candle signal chooses direction, verified NFO master chooses ATM strike.
+ // We NEVER send exchange orders, assume fills or display made-up premiums.
+ let autoLoading=false;
+ const autoReset=()=>{
+   setText('autoAtmContract','Awaiting verified 15m signal and broker ATM option');
+   setText('autoAtmExits','Awaiting broker premium, Greeks and valid risk levels');
+   setText('autoAtmFill','Full fill ETA unknown · 15m check is NOT a fill forecast.');
+   setText('autoAtmSlots','2 entry attempts max across both indices in SHADOW policy; broker global counter unverified.');
+ };
+ function autoNextCheck(){
+   // Fixed India UTC+05:30 timezone. Trading holidays NOT yet verified.
+   const now=new Date(Date.now()+330*60000);
+   let date=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+   while(true){
+     if(![0,6].includes(date.getUTCDay())){
+       const open=date.getTime()+570*60000;
+       const cutoff=date.getTime()+885*60000;
+       const next=now.getTime()<open?open:open+(Math.floor((now.getTime()-open)/900000)+1)*900000;
+       if(next<=cutoff){
+         const d=new Date(next);
+         return String(d.getUTCDate()).padStart(2,'0')+'-'+
+           String(d.getUTCMonth()+1).padStart(2,'0')+'-'+d.getUTCFullYear()+' '+
+           String(d.getUTCHours()).padStart(2,'0')+':'+
+           String(d.getUTCMinutes()).padStart(2,'0')+' IST (provisional; NSE holidays unverified)';
+       }
+     }
+     date=new Date(date.getTime()+86400000);
+     now.setTime(date.getTime());
+   }
+ }
+ function showAutoNext(){setText('autoAtmNext',autoNextCheck());}
+ async function checkAutoATM(){
+   showAutoNext();
+   if(!user||autoLoading)return;
+   const market=$('liveMarket').value,strategy=$('autoAtmStrategy').value;
+   if(!['NIFTY','BANKNIFTY'].includes(market)){
+     autoReset();setText('autoAtmStatus','Choose an Indian index in the existing market dropdown. No BTC Angel ATM plan.');return;
+   }
+   if(location.hostname!=='optionx-v7-frontend-test-staging.onrender.com'){
+     autoReset();setText('autoAtmStatus','Owner-bound V7 staging HTTPS is required. No public broker automation.');return;
+   }
+   autoLoading=true;
+   setText('autoAtmStatus','Checking authentic broker index 15m signal, ATM token, premium and Greeks; NO real orders…');
+   try{
+     const query=new URLSearchParams({market,strategy});
+     const result=await request('/api/v7/angel/auto-atm?'+query);
+     if(result?.broker!=='Angel'||result.market!==market||result.strategy!==strategy||
+        result.canSubmitOrder!==false||result.liveOrdersEnabled!==false||
+        result.dailyEntryHardCap!==2||result.dailyEntryCountVerified!==false||
+        result.fillETASeconds!==null||
+        !['WAITING_FOR_NEW_15M_STRATEGY_SIGNAL',
+          'READONLY_ATM_PREVIEW_READY_NOT_ORDER_ELIGIBLE'].includes(result.status))
+       throw Error('UNTRUSTED_BROKER_AUTO_ATM_RESPONSE');
+     autoReset();
+     if(typeof result.nextStrategyCheck==='string'&&result.nextStrategyCheck.length<55)
+       setText('autoAtmNext',result.nextStrategyCheck+' (IST, holiday unverified)');
+     if(result.status==='WAITING_FOR_NEW_15M_STRATEGY_SIGNAL'){
+       setText('autoAtmStatus','No new completed 15m '+strategy+' signal. Will recheck while this signed-in tab stays open. No order.');return;
+     }
+     const c=result.selectedContract,p=result.exitPlan;
+     if(!c||!p||p.canSubmitOrder!==false||p.liveOrdersEnabled!==false||
+        c.selection!=='nearest_actual_strike_nearest_expiry'||
+        !['CE','PE'].includes(c.side)||!Number.isFinite(c.premium)||
+        !Number.isFinite(p.stopTrigger)||!Number.isFinite(p.stopLimit)||
+        !Number.isFinite(p.targetLimit)||!Number.isFinite(p.quantity)||
+        p.estimatedFillTimeSeconds!==null)
+        throw Error('UNVERIFIED_OPTION_FILL_OR_EXIT');
+     setText('autoAtmContract',c.symbol+' · '+c.side+' · ATM '+c.strike+
+       ' · LTP ₹'+c.premium+' · 1 lot × '+c.lotSize);
+     setText('autoAtmExits','SELL Stop trigger ₹'+p.stopTrigger+
+       ' / stop-limit ₹'+p.stopLimit+' · Target LIMIT ₹'+p.targetLimit);
+     setText('autoAtmStatus','READ-ONLY AUTO PREVIEW: '+result.signal?.signalId+
+       '. Real-money orders and shared broker counter NOT connected.');
+     setText('autoAtmFill','Full fill time cannot be predicted. No depth/queue/rejection evidence; LIMIT order may never fill.');
+   }catch(e){
+     autoReset();
+     setText('autoAtmStatus','Automatic broker ATM unavailable/locked: '+
+       String(e.message||'Unknown')+
+       '. No fabricated premium, stop, signal or fill time; real-money locked.');
+   }finally{autoLoading=false;}
+ }
+ $('autoAtmRefresh').addEventListener('click',checkAutoATM);
+ $('autoAtmStrategy').addEventListener('change',()=>{autoReset();checkAutoATM();});
+ $('liveMarket').addEventListener('change',()=>{autoReset();checkAutoATM();});
+ setInterval(()=>{
+   showAutoNext();
+   if(user&&!document.hidden&&$('page-live').classList.contains('active'))checkAutoATM();
+ },60000);
+ showAutoNext();
  $('liveBrokerDocs').href=DOCS.Zerodha;alignMarket();checks([]);
- return {async setUser(u){user=u||null;$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
+ return {async setUser(u){user=u||null;
+     if(!user){autoReset();setText('autoAtmStatus','Sign in and verify the private owner Angel session. No automatic live orders.');}
+     else if($('page-live').classList.contains('active'))checkAutoATM();$('liveCheck').disabled=!user;$('liveRefresh').disabled=!user;$('saveBrokerRoutes').disabled=!user;$('refreshBrokerRoutes').disabled=!user;$('loadDeltaProducts').disabled=!user;if(!user){
     setText('liveGateway','Sign in required');setText('liveBrokerStatus','Not connected');setText('liveOwnerStatus','Not configured');
     setText('v7Readiness','Sign in to inspect development readiness. Real orders remain blocked.');
     setText('stoxkartAuthStatus','Sign in to OptionX before Stoxkart verification.');setText('stoxkartAccountState','Stoxkart not connected.');
