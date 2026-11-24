@@ -150,3 +150,6 @@ from live_v7.test_stoxkart import StoxkartOfflineTests
 
 # Stoxkart handler-level origin, auth and no-order HTTP routing tests.
 from live_v7.test_stoxkart_http import StoxkartHttpTests
+
+# Independent Angel V7 private-GET checks run in every staging backend build.
+from live_v7.test_angel_readonly_http import AngelReadonlyHttpTests
