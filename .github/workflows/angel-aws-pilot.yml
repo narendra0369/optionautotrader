@@ -44,6 +44,7 @@ jobs:
         run: |
           python3 -m compileall -q live_v8
           python3 -m unittest -v live_v8.test_order_rehearsal
+          python3 -m live_v8.offline_demo
           python3 - <<'PY'
           from live_v8.angel_order_plans import send_real_order
           try:
