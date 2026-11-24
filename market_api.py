@@ -193,8 +193,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, angel_owner_snapshot(
                     verified_optionx_user_id=user, resource=resource,
                     server_feature_flag_enabled=True))
-            except ReadOnlyBridgeError:
+            except ReadOnlyBridgeError as exc:
                 return self._json(503, {'error': 'Owner-bound read-only broker snapshot unavailable',
+                                        'diagnosticCode': exc.diagnostic_code,
+                                        'canSubmitOrder': False,
                                         'liveExecutionEnabled': False})
         if path.path in ('/api/brokers/stoxkart/status', '/api/brokers/stoxkart/positions'):
             if self.headers.get('Origin') != V7_STAGING_ORIGIN or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1':
