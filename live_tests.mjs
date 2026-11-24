@@ -52,4 +52,11 @@ assert.ok(api.includes("OPTIONX_V7_MARKETDATA_ANGEL_ENABLED"));
 assert.ok(api.includes("angel_quote_ltp(user,params.get('token',[''])[0])"));
 assert.ok(readFileSync('live_v7/angel_marketdata.py','utf8').includes('"canSubmitOrder":False'));
 console.log('PASS: staging-only authenticated Angel contract and on-demand LTP pilot; all order routes locked');
+assert.ok(html.includes('id="angelNfoCandles"')&&html.includes('id="angelNfoCsv"'));
+assert.ok(ui.includes("'/api/v7/angel/candles?token='"));
+assert.ok(ui.includes('data.fillPricesVerified!==false'));
+assert.ok(api.includes('angel_candles_15m('));
+assert.ok(readFileSync('live_v7/angel_marketdata.py','utf8').includes('"interval":"FIFTEEN_MINUTE"'));
+assert.ok(!ui.includes("'/api/live/place-order"));
+console.log('PASS: verified NFO 15m research OHLC export only; no automatic broker order routes');
 
