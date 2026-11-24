@@ -19,6 +19,7 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7.egress_diagnostic import check_egress
 from live_v7.angel_greeks import angel_selected_contract_greeks
 from live_v7.angel_auto_atm import angel_auto_atm_readonly
 from live_v7.read_only_bridge import angel_owner_snapshot, ReadOnlyBridgeError
@@ -49,7 +50,7 @@ def _permitted_origin(origin: str, request_path: str = '') -> bool:
     if origin == V7_STAGING_ORIGIN:
         # Public candle/health resources are safe for the V7 Paper UI.
         # Broker/account routes still require an independent owner-bound gate.
-        if request_path in ('/health', '/api/candles'):
+        if request_path in ('/health', '/api/candles', '/api/v7/owner/egress'):
             return True
         return os.getenv('OPTIONX_V7_STAGING_CORS', '0') == '1'
     if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:'):
@@ -169,6 +170,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlsplit(self.path)
         if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True, 'liveOrdersEnabled': False})
+        if path.path == '/api/v7/owner/egress':
+            # The backend process itself measures outbound IPv4. Strict browser
+            # origin + verified Supabase owner; never trust client-supplied IPs.
+            if self.headers.get('Origin') != V7_STAGING_ORIGIN:
+                return self._json(403, {'error': 'PRIVATE_STAGING_OWNER_ONLY', 'canSubmitOrder': False})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403, {'error': 'VERIFIED_OWNER_REQUIRED', 'canSubmitOrder': False})
+            if os.getenv('OPTIONX_V7_EGRESS_DIAGNOSTIC_ENABLED', '0') != '1':
+                return self._json(423, {'error': 'EGRESS_DIAGNOSTIC_DISABLED', 'canSubmitOrder': False})
+            return self._json(200, check_egress(
+                registered_ipv4=os.getenv('OPTIONX_ANGEL_REGISTERED_IPV4', '').strip()))
         if path.path == '/api/v7/readiness':
             user = user_from_token(self.headers.get('Authorization'))
             if not user:

@@ -110,6 +110,35 @@ export function mountLive({client, onPage}){
    return data;
   }finally{clearTimeout(tid);}
  }
+ async function checkEgress(){
+  const label=document.getElementById('angelEgressReport');
+  if(!label)return;
+  label.textContent='Checking backend outbound IPv4 (read-only)…';
+  try{
+   const r=await request('/api/v7/owner/egress');
+   const observed=(r.observations||[]).filter(Boolean);
+   label.textContent='Backend observed IPv4: '+(observed.join(' / ')||'UNAVAILABLE')
+     +' · Sources: '+(r.sourcesAgreed?'agree':'NOT VERIFIED')
+     +' · Registered IP compared: '+(r.registeredIpv4Configured?(r.observedMatchesConfiguredIpv4?'MATCH':'MISMATCH'):'NOT CONFIGURED')
+     +' · Static IP certification: NOT VERIFIED · Orders: OFF';
+  }catch(e){label.textContent='Outbound IPv4 diagnostic unavailable: '+e.message+' · Orders: OFF';}
+ }
+ function installEgressControl(){
+  if(document.getElementById('angelEgressCheck'))return;
+  const parent=$('liveBrokerStatus')?.parentElement;
+  if(!parent)return;
+  const button=document.createElement('button');
+  button.type='button';button.id='angelEgressCheck';
+  button.textContent='Check server outbound IPv4 (read-only)';
+  const report=document.createElement('div');
+  report.id='angelEgressReport';
+  report.className='hint';
+  report.textContent='Static outbound IPv4 has not been independently verified. Real orders OFF.';
+  parent.append(button,report);
+  button.addEventListener('click',()=>checkEgress());
+ }
+ installEgressControl();
+
  async function status(){
   if(!user)return;
   setText('liveGateway','Checking secure gateway…');

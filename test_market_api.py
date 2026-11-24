@@ -74,3 +74,6 @@ from live_v7.test_angel_auto_atm import AngelAutoATMTests
 
 # Build-gate: validate offline Angel order request contracts; NEVER transmit them.
 from live_v7.test_angel_order_contracts import AngelOrderContractsTests
+
+# No-network owner-only egress audit regression; never broker/order calls.
+from live_v7.test_egress_diagnostic import EgressDiagnosticTests
