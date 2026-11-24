@@ -29,14 +29,19 @@ KRAKEN_INTERVALS = {'1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240,
 YAHOO_INTERVALS = {'1m': ('1m', '5d'), '5m': ('5m', '1mo'), '15m': ('15m', '1mo'), '30m': ('30m', '1mo'), '1h': ('60m', '3mo'), '4h': ('60m', '3mo'), '1d': ('1d', '1y')}
 ALLOWED_ORIGIN = 'https://optionx-200k-strategy-lab.onrender.com'
 V7_STAGING_ORIGIN = 'https://optionx-v7-frontend-test-staging.onrender.com'
+V8_MOBILE_PUBLIC_ORIGIN = 'https://optionx-v8-mobile-paper-staging.onrender.com'
 
 
-def _permitted_origin(origin: str) -> bool:
+def _permitted_origin(origin: str, request_path: str = '') -> bool:
     """Do not allow staging browser access to the production backend.
 
     V7 backend staging can opt in explicitly; env setting defaults to OFF
     and has no real-order implication.
     """
+    # The public Android PWA may read only public market resources.
+    # Never grant this origin any private account, token, or broker routes.
+    if origin == V8_MOBILE_PUBLIC_ORIGIN:
+        return request_path in ('/health', '/api/candles')
     if origin == ALLOWED_ORIGIN:
         return True
     if origin == V7_STAGING_ORIGIN:
@@ -136,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
         encoded = json.dumps(body, separators=(',', ':'), allow_nan=False).encode('utf-8')
         self.send_response(status)
         origin = self.headers.get('Origin', '')
-        if _permitted_origin(origin):
+        if _permitted_origin(origin, urlsplit(self.path).path):
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Vary', 'Origin')
         self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -149,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         origin = self.headers.get('Origin', '')
-        if _permitted_origin(origin):
+        if _permitted_origin(origin, urlsplit(self.path).path):
             self.send_header('Access-Control-Allow-Origin', origin)
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
