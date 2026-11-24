@@ -18,3 +18,14 @@ assert.ok(gw.includes("'orderExecutionEnabled': False"));
 assert.ok(gw.includes("'canSubmitOrder': False"));
 assert.ok(readFileSync('tests.mjs','utf8').includes("'live_ui.mjs'"));
 console.log('PASS: live broker-readiness UI, identity verification, preview guards, hard-locked real orders and immutable Render packaging');
+
+// Stoxkart broker choices and owner-bound login-only routes.
+assert.ok(html.includes('id="stoxkartStart"') && html.includes('id="stoxkartApiSecret"'));
+assert.ok(html.includes('id="stoxkartPositions"') && html.includes('stoxkart_callback.html'));
+assert.ok(ui.includes("'/api/brokers/stoxkart/start'"));
+assert.ok(ui.includes("'/api/brokers/stoxkart/complete'"));
+assert.ok(ui.includes("Stoxkart:'https://developers.stoxkart.com/api-documentation/login'"));
+assert.ok(api.includes("'/api/brokers/stoxkart/start'"));
+assert.ok(api.includes("'/api/brokers/stoxkart/positions'"));
+assert.ok(gw.includes("'Stoxkart': {'label': 'Stoxkart Superr API'"));
+console.log('PASS: Stoxkart option and official broker-login callback, real orders hard locked');
