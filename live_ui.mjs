@@ -68,7 +68,7 @@ export function mountLive({client, onPage}){
     'Owner binding: '+(auth.ownerBindingMatched?'MATCHED':'PENDING')
     +' · Angel temporary session: '+(auth.angelProfileSessionActive?'ACTIVE':'NOT ACTIVE')
     +' · Unverified prerequisites: '+gates.length
-    +' · Real orders: HARD LOCKED · V7 development modules remain UNTESTED.');
+    +' · Real orders: HARD LOCKED · Offline safety tests passed; real broker order lifecycle not tested.');
   }catch(e){
    setText('v7Readiness','V7 development readiness is not deployed or unavailable. Real orders remain LOCKED.');
   }
@@ -193,6 +193,7 @@ export function mountLive({client, onPage}){
    setText('stoxkartAuthStatus',!st.ownerMatch
      ?'This OptionX login is not bound as the private broker owner.'
      :st.connected?'Profile matched your Stoxkart Client ID. No order API enabled.':'Owner verified. Create a Stoxkart Superr API app and register the exact callback URL.');
+   if(st.connected)setText('liveBrokerStatus','Stoxkart profile verified · NO ORDERS');
    $('stoxkartStart').disabled=!st.ownerMatch;
    $('stoxkartCheck').disabled=!st.ownerMatch;
    $('stoxkartPositions').disabled=!st.connected;
