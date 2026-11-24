@@ -29,7 +29,9 @@ def inputs():
         emergency_stop=False, unresolved_or_unknown_orders=False,
         existing_market_exposure=False, entries_reserved_today=0,
         unique_intent_reserved_durably=True, quote_at=NOW,
-        approved_max_notional="20000",
+        approved_max_notional="20000", broker_native_stop_supported=True,
+        planned_stop_trigger="94.00", estimated_fees_and_gap_reserve="30",
+        approved_max_trade_risk="500",
     )
     return dict(
         market="NIFTY", contract=contract,
@@ -142,6 +144,24 @@ class AngelOrderContractsTests(unittest.TestCase):
         p = inputs()
         p["owner_snapshot"]["approved_max_notional"] = "100"
         with self.assertRaisesRegex(OrderContractError, "NOTIONAL"):
+            limit_entry(**p)
+
+    def test_unverified_native_stop_blocks_entry(self):
+        p = inputs()
+        p["owner_snapshot"]["broker_native_stop_supported"] = False
+        with self.assertRaisesRegex(OrderContractError, "NATIVE_STOP"):
+            limit_entry(**p)
+
+    def test_trade_risk_budget_required(self):
+        p = inputs()
+        p["owner_snapshot"]["approved_max_trade_risk"] = "100"
+        with self.assertRaisesRegex(OrderContractError, "RISK_EXCEEDS"):
+            limit_entry(**p)
+
+    def test_stop_plan_must_be_tick_aligned(self):
+        p = inputs()
+        p["owner_snapshot"]["planned_stop_trigger"] = "94.03"
+        with self.assertRaisesRegex(OrderContractError, "TICK"):
             limit_entry(**p)
 
     def test_emergency_stop_blocks_entry(self):
