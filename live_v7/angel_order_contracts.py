@@ -116,6 +116,18 @@ def limit_entry(*, market: str, contract: Mapping[str, Any],
     tick_aligned(price, tick, "ENTRY")
     require(bid > 0 and ask >= bid and price >= bid, "INVALID_QUOTE_OR_ENTRY")
     require(price <= ask * Decimal("1.02"), "ENTRY_PRICE_ABOVE_2_PERCENT_ASK_BUFFER")
+    # A verified entry must have a protective-exit plan BEFORE an order is
+    # considered. Estimated downside is a risk bound, not a guaranteed SL fill.
+    require(owner_snapshot.get("broker_native_stop_supported") is True,
+            "NATIVE_STOP_CAPABILITY_UNVERIFIED")
+    stop = money(owner_snapshot.get("planned_stop_trigger"), "PLANNED_STOP_TRIGGER")
+    tick_aligned(stop, tick, "PLANNED_STOP")
+    require(0 < stop < price, "INVALID_PLANNED_STOP")
+    estimated_cost = money(owner_snapshot.get("estimated_fees_and_gap_reserve"), "COST_RESERVE")
+    approved_risk = money(owner_snapshot.get("approved_max_trade_risk"), "MAX_TRADE_RISK")
+    require(estimated_cost >= 0 and approved_risk > 0
+            and (price-stop)*qty + estimated_cost <= approved_risk,
+            "RISK_EXCEEDS_OWNER_BUDGET")
     budget = money(owner_snapshot.get("approved_max_notional"), "MAX_NOTIONAL")
     require(budget > 0 and price * qty <= budget, "NOTIONAL_EXCEEDS_OWNER_BUDGET")
     payload = {
