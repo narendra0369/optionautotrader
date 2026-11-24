@@ -10,16 +10,19 @@ from __future__ import annotations
 from typing import Mapping, Any
 
 
-def status(angel_session: Mapping[str, Any] | None) -> dict[str, Any]:
+def status(angel_session: Mapping[str, Any] | None, stoxkart_session: Mapping[str, Any] | None = None) -> dict[str, Any]:
     s = angel_session if isinstance(angel_session, Mapping) else {}
+    stox = stoxkart_session if isinstance(stoxkart_session, Mapping) else {}
     confirmed = {
         "optionxUserSignedIn": True,  # caller MUST verify Supabase access token
         "ownerBindingConfigured": s.get("ownerConfigured") is True,
         "ownerBindingMatched": s.get("ownerMatch") is True,
         "angelProfileSessionActive": s.get("connected") is True,
+        "stoxkartProfileSessionActive": stox.get("connected") is True,
     }
     not_verified = [
         "ANGEL_REGISTERED_STATIC_EGRESS_IPV4",
+        "STOXKART_UNATTENDED_ALGO_EXCHANGE_APPROVAL",
         "BROKER_ALGO_PERMISSIONS_AND_COMPLIANCE",
         "DERIVATIVE_INSTRUMENT_MASTER_FRESH",
         "BROKER_AUTHENTICATED_EXECUTION_QUOTES",
@@ -45,7 +48,8 @@ def status(angel_session: Mapping[str, Any] | None) -> dict[str, Any]:
             "kill_switch", "audit_chain", "sql_schema_draft"
         ],
         "unverifiedCode": True,
-        "testsDeferred": True,
+        "testsDeferred": False,
+        "brokerLiveOrdersTested": False,
         "productionDeploymentOfV7": False,
         "notice": "Angel profile verification is not authority to execute real trades.",
     }
