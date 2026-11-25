@@ -83,3 +83,5 @@ from live_v7.test_angel_greeks_order_bridge import GreeksOrderBridgeTests
 from live_v7.test_angel_execution_transport import AngelExecutionTransportTests
 
 from live_v7.test_angel_aws_release_gate import AwsReleaseGateTests
+
+from live_v7.test_angel_books_readonly import AngelBooksReadOnlyTests
