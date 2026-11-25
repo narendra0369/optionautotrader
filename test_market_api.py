@@ -105,3 +105,5 @@ from live_v7.test_execution_coordinator_v23 import V23ExecutionCoordinatorTests
 from live_v7.test_prelive_gate_v24 import V24PreliveGateTests
 
 from live_v7.test_pg_atomic_reservation_v25 import V25PostgresStoppedReservationTests
+
+from live_v7.test_manual_sl_preflight_v26 import V26ManualSlPreflightTests
