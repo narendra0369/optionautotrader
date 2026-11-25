@@ -13,6 +13,7 @@ from live_v7.read_only_bridge import ReadOnlyBridgeError
 
 POSITIONS='/api/v7/angel/positions'
 ORDERS='/api/v7/angel/orderbook'
+TRADES='/api/v7/angel/tradebook'
 OFF={'OPTIONX_V7_READONLY_ANGEL_ENABLED':'0'}
 ON={'OPTIONX_V7_READONLY_ANGEL_ENABLED':'1'}
 SNAPSHOT={
@@ -94,6 +95,40 @@ class AngelReadonlyHttpTests(unittest.TestCase):
         self.assertEqual(code,200)
         self.assertEqual(body['records'][0]['status'],'UNKNOWN')
         self.assertFalse(body['canSubmitOrder'])
+
+    def test_tradebook_private_route_and_safe_summary(self):
+        preview={
+            'broker':'Angel','resource':'tradebook',
+            'records':[], 'recordCount':1,
+            'tradeSummary':{'tradeRows':1,'fillsBrokerVerified':False,
+                'avgFillPriceBrokerVerified':False,'reconciliationPending':True},
+            'fillsBrokerVerified':False,'acknowledgementVerified':False,
+            'canSubmitOrder':False,'liveExecutionEnabled':False
+        }
+        with patch.dict(os.environ,ON), patch(
+            'market_api.angel_owner_snapshot',return_value=preview) as reader:
+            code,body,_=hit('GET',TRADES,user='verified-owner')
+        self.assertEqual(code,200)
+        reader.assert_called_once_with(
+            verified_optionx_user_id='verified-owner',resource='tradebook',
+            server_feature_flag_enabled=True)
+        self.assertFalse(body['fillsBrokerVerified'])
+        self.assertFalse(body['acknowledgementVerified'])
+        self.assertFalse(body['canSubmitOrder'])
+
+    def test_tradebook_requires_owner_and_private_origin(self):
+        with patch.dict(os.environ,ON), patch('market_api.angel_owner_snapshot') as reader:
+            code,_,_=hit('GET',TRADES,origin='https://wrong.example')
+            self.assertEqual(code,403)
+            code,_,_=hit('GET',TRADES,user=None)
+            self.assertEqual(code,401)
+        reader.assert_not_called()
+
+    def test_tradebook_requires_readonly_flag(self):
+        with patch.dict(os.environ,OFF), patch('market_api.angel_owner_snapshot') as reader:
+            code,_,_=hit('GET',TRADES)
+        self.assertEqual(code,423)
+        reader.assert_not_called()
 
     def test_all_real_order_post_paths_stay_hard_locked(self):
         with patch.dict(os.environ,ON):
