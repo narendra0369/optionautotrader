@@ -274,7 +274,7 @@ class Handler(BaseHTTPRequestHandler):
                                            'diagnosticCode':exc.code,
                                            'liveExecutionEnabled':False,
                                            'orderExecutionEnabled':False,'canSubmitOrder':False})
-        if path.path in ('/api/v7/angel/orderbook', '/api/v7/angel/positions'):
+        if path.path in ('/api/v7/angel/orderbook', '/api/v7/angel/tradebook', '/api/v7/angel/positions'):
             # Private broker reads ONLY from the separate V7 staging UI.
             # A valid OPTIONX JWT alone does not grant another website account access.
             if (self.headers.get('Origin') != V7_STAGING_ORIGIN
@@ -289,7 +289,8 @@ class Handler(BaseHTTPRequestHandler):
             if os.getenv('OPTIONX_V7_READONLY_ANGEL_ENABLED', '0') != '1':
                 return self._json(423, {'error': 'V7_READONLY_ACCOUNT_INSPECTION_DISABLED',
                                         'liveExecutionEnabled': False})
-            resource = 'orderbook' if path.path.endswith('/orderbook') else 'positions'
+            resource = ('orderbook' if path.path.endswith('/orderbook') else
+                        'tradebook' if path.path.endswith('/tradebook') else 'positions')
             try:
                 return self._json(200, angel_owner_snapshot(
                     verified_optionx_user_id=user, resource=resource,

@@ -14,6 +14,7 @@ from typing import Any
 
 import angel_gateway
 from live_v7.broker_readonly import angel_orders, angel_positions, BrokerSnapshotError
+from live_v7.angel_books_readonly import _tradebook_summary
 from live_v7.read_only_transport import (
     ServerOnlySession, fetch_readonly, ReadOnlyTransportError,
 )
@@ -40,8 +41,8 @@ def angel_owner_snapshot(
     """
     if server_feature_flag_enabled is not True:
         raise ReadOnlyBridgeError("V7 read-only broker inspection is not enabled", "FEATURE_DISABLED")
-    if resource not in ("orderbook", "positions"):
-        raise ReadOnlyBridgeError("Only read-only orderbook and positions supported")
+    if resource not in ("orderbook", "tradebook", "positions"):
+        raise ReadOnlyBridgeError("Only fixed read-only broker books supported")
     if not angel_gateway._owner_bound(verified_optionx_user_id):
         raise ReadOnlyBridgeError("OptionX owner binding failed")
 
@@ -70,21 +71,26 @@ def angel_owner_snapshot(
             # No raw broker message is logged or sent to the client.
             raise ReadOnlyBridgeError("Angel API rejected the account read",
                                       "ANGEL_API_REJECTED")
-        normalized = angel_orders(response) if resource == "orderbook" else angel_positions(response)
+        normalized = (angel_orders(response) if resource == "orderbook" else
+                      angel_positions(response) if resource == "positions" else None)
+        trade_summary = _tradebook_summary(response) if resource == "tradebook" else None
     except ReadOnlyBridgeError:
         raise
     except ReadOnlyTransportError as exc:
         raise ReadOnlyBridgeError("Broker read transport is unavailable",
                                   exc.diagnostic_code) from None
-    except (KeyError, BrokerSnapshotError):
+    except (KeyError, BrokerSnapshotError, ValueError):
         raise ReadOnlyBridgeError("Broker returned unexpected NFO snapshot shape",
                                   "BROKER_DATA_FORMAT") from None
 
     return {
         "broker": "Angel",
         "resource": resource,
-        "records": normalized,
-        "recordCount": len(normalized),
+        "records": normalized if normalized is not None else [],
+        "recordCount": len(normalized) if normalized is not None else trade_summary["tradeRows"],
+        "tradeSummary": trade_summary,
+        "fillsBrokerVerified": False,
+        "acknowledgementVerified": False,
         "trustedAccount": "OWNER_PROFILE_MATCHED",
         "snapshotContract": "OPTIONX_V7_ANGEL_READONLY_V2",
         "quoteAndContractMasterVerified": False,
