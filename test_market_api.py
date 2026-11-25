@@ -103,3 +103,5 @@ from live_v7.test_aws_runtime_evidence_v22 import V22RuntimeEvidenceTests
 from live_v7.test_execution_coordinator_v23 import V23ExecutionCoordinatorTests
 
 from live_v7.test_prelive_gate_v24 import V24PreliveGateTests
+
+from live_v7.test_pg_atomic_reservation_v25 import V25PostgresStoppedReservationTests
