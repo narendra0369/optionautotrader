@@ -90,8 +90,9 @@ def review_runtime_evidence(
             evidence_blocks.add("ENTRY_BROKER_CONTRACT_MISMATCH")
             continue
         try:
-            remote_qty = int(remote.get("quantity"))
-            broker_fill = int(remote.get("filledshares"))
+            from live_v7.broker_evidence_v21 import _quantity
+            remote_qty = _quantity(remote.get("quantity"))
+            broker_fill = _quantity(remote.get("filledshares"))
             if (type(quantity) is not int or type(saved_fill) is not int
                     or remote_qty != quantity or not 0 <= broker_fill <= quantity):
                 raise EvidenceError("ENTRY_ORDER_QUANTITY_MISMATCH")
@@ -103,6 +104,7 @@ def review_runtime_evidence(
             )
             if fill["verifiedQuantity"] != saved_fill:
                 evidence_blocks.add("LEDGER_FILL_NOT_YET_RECONCILED")
+                continue  # Cannot declare protection verified against stale ledger.
             if fill["brokerFillProof"]:
                 verified_fills += 1
             if not fill["requiresProtection"]:
