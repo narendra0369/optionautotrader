@@ -32,7 +32,7 @@ class V18LifecycleTests(unittest.TestCase):
                              day_ist=DAY,now=T)
  def fill(self,status,quantity,key="abcde123"):
   return broker_fill_observed(self.c,verified_owner_id=OWNER,intent_key=key,
-    day_ist=DAY,broker_order_id="broker987",filled_quantity=quantity,
+    day_ist=DAY,broker_order_id="broker987" if key=="abcde123" else "broker988",filled_quantity=quantity,
     status=status,source_authenticated=True,now=T)
  def stop(self, qty=65, oid="stop987", status="TRIGGER_PENDING"):
   return confirm_protection(self.c,verified_owner_id=OWNER,intent_key="abcde123",day_ist=DAY,
