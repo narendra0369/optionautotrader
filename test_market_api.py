@@ -87,3 +87,5 @@ from live_v7.test_angel_aws_release_gate import AwsReleaseGateTests
 from live_v7.test_angel_books_readonly import AngelBooksReadOnlyTests
 
 from live_v7.test_aws_shadow_observer import AwsShadowObserverTests
+
+from live_v7.test_aws_angel_owner_reader import AwsAngelOwnerReaderTests
