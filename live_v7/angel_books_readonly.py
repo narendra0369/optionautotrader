@@ -52,7 +52,8 @@ def _tradebook_summary(response):
 
 
 def read_book(user_id: str, resource: str, *, fetch: Callable | None = None,
-              now: datetime | None = None) -> dict:
+              now: datetime | None = None,
+              include_raw_for_server: bool = False) -> dict:
     """Fixed-path GET; caller must be authenticated owner in SAME server process.
 
     No token read from client. The existing RAM session expires on logout,
@@ -106,6 +107,9 @@ def read_book(user_id: str, resource: str, *, fetch: Callable | None = None,
     except (urllib.error.HTTPError, urllib.error.URLError, OSError, TimeoutError,
             ValueError, TypeError, UnicodeDecodeError, BrokerSnapshotError):
         raise AngelBookReadError("BROKER_BOOK_UNAVAILABLE_OR_INVALID") from None
+    if include_raw_for_server is True and resource in ("orderbook", "tradebook"):
+        # Trusted server-memory only. Never persist, serialize to browser or log.
+        result["rawRows"] = list(_bounded_rows(obj))
     metadata = snapshot_metadata(
         broker="Angel", resource=resource, received_at=moment,
         now=moment, account_owner_verified=True)
