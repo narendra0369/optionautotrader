@@ -79,6 +79,8 @@ def _guard(session: TrustedServerSession, *, expected_owner_id: str,
 
 
 def _validate_payload(operation: str, payload: Mapping[str, Any] | None) -> None:
+    if operation not in PATHS:
+        raise AngelTransportBlocked("OPERATION_NOT_ALLOWLISTED")
     if operation == "orderbook":
         if payload:
             raise AngelTransportBlocked("ORDERBOOK_BODY_NOT_ALLOWED")
