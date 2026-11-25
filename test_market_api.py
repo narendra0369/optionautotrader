@@ -101,3 +101,5 @@ from live_v7.test_broker_evidence_v21 import V21BrokerEvidenceTests
 from live_v7.test_aws_runtime_evidence_v22 import V22RuntimeEvidenceTests
 
 from live_v7.test_execution_coordinator_v23 import V23ExecutionCoordinatorTests
+
+from live_v7.test_prelive_gate_v24 import V24PreliveGateTests
