@@ -81,3 +81,5 @@ from live_v7.test_egress_diagnostic import EgressDiagnosticTests
 from live_v7.test_angel_greeks_order_bridge import GreeksOrderBridgeTests
 
 from live_v7.test_angel_execution_transport import AngelExecutionTransportTests
+
+from live_v7.test_angel_aws_release_gate import AwsReleaseGateTests
