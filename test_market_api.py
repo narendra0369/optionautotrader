@@ -79,3 +79,5 @@ from live_v7.test_angel_order_contracts import AngelOrderContractsTests
 from live_v7.test_egress_diagnostic import EgressDiagnosticTests
 
 from live_v7.test_angel_greeks_order_bridge import GreeksOrderBridgeTests
+
+from live_v7.test_angel_execution_transport import AngelExecutionTransportTests
