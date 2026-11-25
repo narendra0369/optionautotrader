@@ -91,3 +91,5 @@ from live_v7.test_aws_shadow_observer import AwsShadowObserverTests
 from live_v7.test_aws_angel_owner_reader import AwsAngelOwnerReaderTests
 
 from live_v7.test_lifecycle_rehearsal_v18 import V18LifecycleTests
+
+from live_v7.test_aws_pg_recovery_v19 import V19PostgresRecoveryTests
