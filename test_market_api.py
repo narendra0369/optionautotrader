@@ -107,3 +107,5 @@ from live_v7.test_prelive_gate_v24 import V24PreliveGateTests
 from live_v7.test_pg_atomic_reservation_v25 import V25PostgresStoppedReservationTests
 
 from live_v7.test_manual_sl_preflight_v26 import V26ManualSlPreflightTests
+
+from live_v7.test_manual_sl_quote_v27 import V27ManualSLQuoteTests
