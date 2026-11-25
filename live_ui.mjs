@@ -113,14 +113,16 @@ export function mountLive({client, onPage}){
  async function checkEgress(){
   const label=document.getElementById('angelEgressReport');
   if(!label)return;
-  label.textContent='Checking backend outbound IPv4 (read-only)…';
+  label.textContent='Checking Render staging outbound IPv4 (not AWS)…';
   try{
    const r=await request('/api/v7/owner/egress');
    const observed=(r.observations||[]).filter(Boolean);
-   label.textContent='Backend observed IPv4: '+(observed.join(' / ')||'UNAVAILABLE')
+   const comparison=r.registeredIpv4Configured?(r.observedMatchesConfiguredIpv4?'MATCH':'DIFFERENT HOST — EXPECTED'):'NOT CONFIGURED';
+   label.textContent='Render staging outbound IPv4 (NOT your AWS execution host): '+(observed.join(' / ')||'UNAVAILABLE')
      +' · Sources: '+(r.sourcesAgreed?'agree':'NOT VERIFIED')
-     +' · Registered IP compared: '+(r.registeredIpv4Configured?(r.observedMatchesConfiguredIpv4?'MATCH':'MISMATCH'):'NOT CONFIGURED')
-     +' · Static IP certification: NOT VERIFIED · Orders: OFF';
+     +' · Compared with Angel-registered AWS IP: '+comparison
+     +' · This does NOT measure AWS egress or invalidate AWS broker whitelisting.'
+     +' · AWS certification: NOT VERIFIED HERE · Real orders: OFF';
   }catch(e){label.textContent='Outbound IPv4 diagnostic unavailable: '+e.message+' · Orders: OFF';}
  }
  function installEgressControl(){
@@ -129,11 +131,11 @@ export function mountLive({client, onPage}){
   if(!parent)return;
   const button=document.createElement('button');
   button.type='button';button.id='angelEgressCheck';
-  button.textContent='Check server outbound IPv4 (read-only)';
+  button.textContent='Check Render staging IP (not AWS)';
   const report=document.createElement('div');
   report.id='angelEgressReport';
   report.className='hint';
-  report.textContent='Static outbound IPv4 has not been independently verified. Real orders OFF.';
+  report.textContent='Measures Render staging only, not Angel-registered AWS. Real orders OFF.';
   parent.append(button,report);
   button.addEventListener('click',()=>checkEgress());
  }
