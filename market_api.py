@@ -19,6 +19,9 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7.owner_live_unlock_v46 import live_unlock_status as v46_live_unlock_status
+from live_v7.owner_activation_coordinator_v50 import inspect_owner_activation
+from live_v7.render_aws_relay_v48 import forward_owner_control, RelayBlocked
 from live_v7.egress_diagnostic import check_egress
 from live_v7.angel_greeks import angel_selected_contract_greeks
 from live_v7.angel_auto_atm import angel_auto_atm_readonly
@@ -182,6 +185,29 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(423, {'error': 'EGRESS_DIAGNOSTIC_DISABLED', 'canSubmitOrder': False})
             return self._json(200, check_egress(
                 registered_ipv4=os.getenv('OPTIONX_ANGEL_REGISTERED_IPV4', '').strip()))
+        if path.path == '/api/v50/owner/activation-eligibility':
+            # Read-only. This Render process CANNOT certify the AWS broker
+            # worker and never trusts browser-submitted proof flags.
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403, {'error':'OWNER_ONLY',
+                                        'liveOrdersEnabled':False})
+            return self._json(200, inspect_owner_activation(
+                owner_authenticated=True))
+        if path.path == '/api/v46/owner/live-unlock-status':
+            # Trusted Supabase session AND server-side owner binding required.
+            # This endpoint is GET/READ-ONLY, with no broker order or gate write.
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401, {'error':'AUTHENTICATED_OWNER_REQUIRED',
+                                        'liveOrdersEnabled':False})
+            broker_state = angel_status(user)
+            if broker_state.get('ownerMatch') is not True:
+                return self._json(403, {'error':'OWNER_ONLY',
+                                        'liveOrdersEnabled':False})
+            return self._json(200, v46_live_unlock_status(
+                owner_match=True,
+                verified_session=broker_state.get('connected') is True))
         if path.path == '/api/v7/readiness':
             user = user_from_token(self.headers.get('Authorization'))
             if not user:
@@ -346,6 +372,69 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path == '/api/v51/owner/activate':
+            # Real button action: authenticated owner request is signed by
+            # Render and evaluated on AWS. Only AWS can arm after verified
+            # prerequisites; frontend supplies NO evidence or lock override.
+            if (self.headers.get('Origin') != V7_STAGING_ORIGIN
+                or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1'):
+                return self._json(403,{'error':'OWNER_STAGING_ORIGIN_REQUIRED',
+                                       'liveOrdersEnabled':False})
+            if self.headers.get('Content-Type','').split(';')[0].strip().lower()!='application/json':
+                return self._json(415,{'error':'JSON_REQUIRED','liveOrdersEnabled':False})
+            user=user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403,{'error':'VERIFIED_OWNER_REQUIRED',
+                                       'liveOrdersEnabled':False})
+            if os.getenv('OPTIONX_V48_CONTROL_RELAY_ENABLED','0')!='1':
+                return self._json(423,{'error':'AWS_CONTROL_CHANNEL_NOT_DEPLOYED',
+                                       'liveOrdersEnabled':False})
+            try:
+                n=int(self.headers.get('Content-Length','0'))
+                if n!=2 or json.loads(self.rfile.read(n))!={}:
+                    return self._json(400,{'error':'EMPTY_JSON_REQUIRED',
+                                           'liveOrdersEnabled':False})
+                reply=forward_owner_control(
+                    verified_owner_id=user,
+                    expected_owner_id=os.getenv('OPTIONX_OWNER_USER_ID',''),
+                    action='REQUEST_ACTIVATE_LIVE',
+                    signing_key=os.getenv('OPTIONX_V48_CONTROL_HMAC_KEY','').encode('utf-8'),
+                    aws_endpoint=os.getenv('OPTIONX_V48_AWS_HTTPS_URL',''))
+                return self._json(200,reply)
+            except (RelayBlocked,ValueError,TypeError):
+                return self._json(503,{'error':'AWS_ACTIVATION_NOT_CONFIRMED',
+                                       'liveOrdersEnabled':False})
+        if path == '/api/v48/owner/request-unlock-review':
+            # Owner-bound, CSRF-guarded server-to-server signed command.
+            # Never accepts arbitrary order params or browser supplied HMAC.
+            if (self.headers.get('Origin') != V7_STAGING_ORIGIN
+                or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1'):
+                return self._json(403, {'error':'OWNER_STAGING_ORIGIN_REQUIRED',
+                                        'liveOrdersEnabled':False})
+            if self.headers.get('Content-Type','').split(';')[0].strip().lower() != 'application/json':
+                return self._json(415, {'error':'JSON_REQUIRED','liveOrdersEnabled':False})
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403, {'error':'VERIFIED_OWNER_REQUIRED',
+                                        'liveOrdersEnabled':False})
+            if os.getenv('OPTIONX_V48_CONTROL_RELAY_ENABLED','0') != '1':
+                return self._json(423, {'error':'AWS_CONTROL_CHANNEL_NOT_DEPLOYED',
+                                        'liveOrdersEnabled':False})
+            try:
+                n = int(self.headers.get('Content-Length','0'))
+                if n != 2 or json.loads(self.rfile.read(n)) != {}:
+                    return self._json(400, {'error':'EMPTY_JSON_REQUIRED',
+                                            'liveOrdersEnabled':False})
+                response=forward_owner_control(
+                    verified_owner_id=user,
+                    expected_owner_id=os.getenv('OPTIONX_OWNER_USER_ID',''),
+                    action='REQUEST_UNLOCK_REVIEW',
+                    signing_key=os.getenv('OPTIONX_V48_CONTROL_HMAC_KEY','').encode('utf-8'),
+                    aws_endpoint=os.getenv('OPTIONX_V48_AWS_HTTPS_URL',''))
+                return self._json(200,response)
+            except (RelayBlocked,ValueError,TypeError):
+                return self._json(503, {'error':'AWS_OWNER_CONTROL_NOT_CONFIRMED',
+                                        'liveOrdersEnabled':False})
         if path in ('/api/brokers/stoxkart/start', '/api/brokers/stoxkart/complete', '/api/brokers/stoxkart/disconnect'):
             # Stoxkart credentials are accepted ONLY from the dedicated staging
             # frontend, using an authenticated OptionX owner session.
