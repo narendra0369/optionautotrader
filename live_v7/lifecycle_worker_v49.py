@@ -48,8 +48,31 @@ def run_mock_cycle(*, intent_db, control_db, owner_id, intent_key,
         raise LifecycleBlocked("SCENARIO_NOT_ALLOWLISTED")
     # Always preserve the real owner engine in STOPPED/REVIEW_REQUESTED.
     # Neither control state authorizes a real order or a real gateway.
+    # V49's display/preview fixture has different field names from the
+    # V43 durable ledger. Explicitly translate only the known synthetic
+    # fixture; never remove or weaken V43's strict schema/identity check.
+    if not isinstance(draft,dict) or set(draft)!={
+        "contract","token","quantity","side","orderType","limit",
+        "canSubmitOrder","submittedOrder","realOrdersEnabled"
+    }:
+        raise LifecycleBlocked("SYNTHETIC_DRAFT_FIELDS_INVALID")
+    if (draft["canSubmitOrder"] is not False
+        or draft["submittedOrder"] is not False
+        or draft["realOrdersEnabled"] is not False):
+        raise LifecycleBlocked("SYNTHETIC_DRAFT_MUST_REMAIN_LOCKED")
+    journal_order={
+        "exchange":"NFO",
+        "symbol":draft["contract"],
+        "token":draft["token"],
+        "side":draft["side"],
+        "type":draft["orderType"],
+        "price":draft["limit"],
+        "quantity":draft["quantity"],
+        "producttype":"CARRYFORWARD",
+        "duration":"DAY",
+    }
     staged=reserve(intent_db,owner_id=owner_id,
-                   idempotency_key=intent_key,order=draft,now=now)
+                   idempotency_key=intent_key,order=journal_order,now=now)
     if staged["result"]!="RESERVED_ONLY":
         return _off(phase="DUPLICATE_NO_DISPATCH",
                     reason="EXISTING_DURABLE_INTENT_NO_RETRY")
