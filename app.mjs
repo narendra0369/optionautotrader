@@ -187,6 +187,8 @@ async function loadSaved(){if(!client||!sessionUser)return;const {data,error}=aw
 byId('refreshRuns').addEventListener('click',loadSaved);
 const paperController=mountPaper({client,onPage:page});
 const liveController=mountLive({client,onPage:page});
+const ownerMfaState={factorId:null,pendingEnrollment:false,busy:false,userId:null};
+initOwnerMfa();
 const gate=byId('authGate');function authMsg(t){setText('authStatus',t);}
 function mode(m){authMode=m;byId('modeSignup').classList.toggle('selected',m==='signup');byId('modeSignin').classList.toggle('selected',m==='signin');setText('authSubmit',m==='signup'?'Create account':'Sign in');authMsg('Secure login · Paper research only');}
 byId('modeSignup').addEventListener('click',()=>mode('signup'));
@@ -200,7 +202,7 @@ byId('authForm').addEventListener('submit',async e=>{
  }catch(err){authMsg(err.message||'Authentication failed.');}finally{byId('authSubmit').disabled=false;}
 });
 byId('signOut').addEventListener('click',async()=>{if(client)await client.auth.signOut();sessionUser=null;gate.hidden=false;page('dashboard');});
-function setUser(user){sessionUser=user||null;paperController.setUser(sessionUser).catch(e=>setText('paperStatus','Account sync error: '+e.message));liveController.setUser(sessionUser).catch(e=>setText('liveStatus','Gateway status error: '+e.message));gate.hidden=!!user;setText('userButton',user?user.email?.split('@')[0]||'Account':'Sign in');setText('accountEmail',user?.email||'Not signed in');if(user)loadSaved();}
+function setUser(user){sessionUser=user||null;paperController.setUser(sessionUser).catch(e=>setText('paperStatus','Account sync error: '+e.message));liveController.setUser(sessionUser).catch(e=>setText('liveStatus','Gateway status error: '+e.message));gate.hidden=!!user;setText('userButton',user?user.email?.split('@')[0]||'Account':'Sign in');setText('accountEmail',user?.email||'Not signed in');if(user)loadSaved();refreshOwnerMfa(user).catch(()=>mfaStatus('MFA status unavailable. Sign in again and retry.'));}
 if(!client){authMsg('Authentication unavailable: could not load Supabase client. Check internet and refresh.');}
 else{client.auth.onAuthStateChange((_event,session)=>setUser(session?.user));const {data,error}=await client.auth.getSession();if(error)authMsg(error.message);else setUser(data.session?.user);}
 const chartController=mountCharts({onResearch:({market,timeframe,bars,source})=>{
@@ -212,3 +214,145 @@ const chartController=mountCharts({onResearch:({market,timeframe,bars,source})=>
  }});
 selectMarket('NIFTY');if(headings[location.hash.substring(1)])page(location.hash.substring(1));
 if(location.hash.substring(1)==='markets')chartController.refresh();
+
+
+// V73 OPTIONX Google Authenticator TOTP enrollment and fresh session step-up.
+// Supabase Auth owns enrollment secrets, QR and TOTP verification. Never sends
+// secrets or OTP codes to OptionX trading APIs. Does not issue order permits.
+function mfaStatus(message){byId('ownerMfaStatus').textContent=message;}
+function ownerMfaClear(){
+ ownerMfaState.factorId=null;ownerMfaState.pendingEnrollment=false;
+ byId('ownerMfaQr').removeAttribute('src');
+ byId('ownerMfaCode').value='';
+ byId('ownerMfaSetup').hidden=true;
+ byId('ownerMfaVerifyForm').hidden=true;
+ byId('ownerMfaChallenge').hidden=true;
+ byId('ownerMfaEnroll').disabled=true;
+ byId('ownerMfaChallenge').disabled=true;
+}
+function mfaBusy(isBusy){
+ ownerMfaState.busy=!!isBusy;
+ byId('ownerMfaEnroll').disabled=!!isBusy || !sessionUser || !!ownerMfaState.factorId;
+ byId('ownerMfaChallenge').disabled=!!isBusy || !sessionUser;
+ byId('ownerMfaVerifyButton').disabled=!!isBusy;
+ byId('ownerMfaRefresh').disabled=!!isBusy || !sessionUser;
+}
+async function refreshOwnerMfa(user){
+ if(!client || !user){
+   ownerMfaState.userId=null;ownerMfaClear();
+   mfaStatus('Sign in to configure Google Authenticator.');
+   return;
+ }
+ if(ownerMfaState.userId!==user.id){
+   ownerMfaClear();ownerMfaState.userId=user.id;
+ }
+ if(ownerMfaState.pendingEnrollment)return;
+ const result=await client.auth.mfa.listFactors();
+ if(result.error)throw result.error;
+ if(!sessionUser || sessionUser.id!==user.id)return;
+ const verified=(result.data?.totp||[]).find(f=>f.status==='verified');
+ if(!verified){
+   ownerMfaState.factorId=null;
+   byId('ownerMfaEnroll').disabled=false;
+   byId('ownerMfaChallenge').hidden=true;
+   mfaStatus('Google Authenticator is not enabled. Select Enable to scan your private QR code.');
+   return;
+ }
+ ownerMfaState.factorId=verified.id;
+ byId('ownerMfaEnroll').disabled=true;
+ byId('ownerMfaChallenge').hidden=false;
+ byId('ownerMfaChallenge').disabled=false;
+ const aal=await client.auth.mfa.getAuthenticatorAssuranceLevel();
+ if(aal.error)throw aal.error;
+ if(!sessionUser || sessionUser.id!==user.id)return;
+ if(aal.data?.currentLevel==='aal2'){
+   byId('ownerMfaVerifyForm').hidden=true;
+   byId('ownerMfaSetup').hidden=true;
+   byId('ownerMfaQr').removeAttribute('src');
+   mfaStatus('Google Authenticator enabled · current login MFA verified (AAL2). Live orders remain OFF.');
+ } else {
+   mfaStatus('Google Authenticator enabled. Verify this login with your 6-digit code.');
+   byId('ownerMfaVerifyForm').hidden=false;
+ }
+}
+function ownerQrSrc(value){
+ if(typeof value!=='string'||value.length>300000)throw Error('QR image unavailable.');
+ const raw=value.trim();
+ if(raw.startsWith('data:image/svg+xml'))return raw;
+ if(raw.startsWith('<svg') && raw.includes('</svg>'))
+   return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(raw);
+ throw Error('Supabase returned an unsupported QR image.');
+}
+function initOwnerMfa(){
+ byId('ownerMfaEnroll').addEventListener('click',async()=>{
+   if(!client||!sessionUser||ownerMfaState.busy)return;
+   mfaBusy(true);mfaStatus('Requesting a private enrollment QR from Supabase Auth…');
+   try{
+     const f=await client.auth.mfa.listFactors();
+     if(f.error)throw f.error;
+     if((f.data?.totp||[]).some(x=>x.status==='verified'))
+       throw Error('Authenticator already enabled. Refresh status to verify the current login.');
+     // Each new attempt must have a unique name. A previous unfinished
+     // factor may exist, but its private QR secret cannot be recovered.
+     // Never unenroll or replace an existing verified factor automatically.
+     const attemptTag = (typeof crypto !== 'undefined' && crypto.randomUUID)
+       ? crypto.randomUUID().slice(0, 12)
+       : String(Date.now()) + '-' + String(Math.floor(Math.random()*1000000));
+     const enrolled=await client.auth.mfa.enroll({
+       factorType:'totp',
+       friendlyName:'OptionX Authenticator ' + attemptTag
+     });
+     if(enrolled.error)throw enrolled.error;
+     const factor=enrolled.data;
+     if(!factor?.id||!factor.totp?.qr_code)throw Error('Supabase returned no enrollment QR.');
+     ownerMfaState.factorId=factor.id;
+     ownerMfaState.pendingEnrollment=true;
+     byId('ownerMfaQr').src=ownerQrSrc(factor.totp.qr_code);
+     byId('ownerMfaSetup').hidden=false;
+     byId('ownerMfaVerifyForm').hidden=false;
+     byId('ownerMfaChallenge').hidden=true;
+     mfaStatus('Scan QR in Google Authenticator, then enter the 6-digit code to complete enrollment.');
+     byId('ownerMfaCode').focus();
+   }catch(err){mfaStatus('MFA setup: '+(err.message||'Unable to enroll.')); }
+   finally{mfaBusy(false);}
+ });
+ byId('ownerMfaChallenge').addEventListener('click',async()=>{
+   if(!sessionUser||!ownerMfaState.factorId||ownerMfaState.busy)return;
+   byId('ownerMfaVerifyForm').hidden=false;
+   mfaStatus('Enter your current Google Authenticator code for this login.');
+   byId('ownerMfaCode').focus();
+ });
+ byId('ownerMfaVerifyForm').addEventListener('submit',async(event)=>{
+   event.preventDefault();
+   if(!client||!sessionUser||!ownerMfaState.factorId||ownerMfaState.busy)return;
+   const code=byId('ownerMfaCode').value.trim();
+   if(!/^[0-9]{6}$/.test(code)){mfaStatus('Enter exactly six digits.');return;}
+   mfaBusy(true);
+   try{
+     const confirmed=await client.auth.mfa.challengeAndVerify({
+       factorId:ownerMfaState.factorId,code:code
+     });
+     if(confirmed.error)throw confirmed.error;
+     ownerMfaState.pendingEnrollment=false;
+     byId('ownerMfaCode').value='';
+     byId('ownerMfaQr').removeAttribute('src');
+     byId('ownerMfaSetup').hidden=true;
+     mfaStatus('Code verified. Checking Supabase Auth assurance level…');
+     await refreshOwnerMfa(sessionUser);
+   }catch(err){
+     byId('ownerMfaCode').value='';
+     mfaStatus('Verification failed: '+(err.message||'Try the latest 6-digit code.'));
+   }finally{mfaBusy(false);}
+ });
+ byId('ownerMfaRefresh').addEventListener('click',async()=>{
+   if(!sessionUser||ownerMfaState.busy)return;
+   mfaBusy(true);
+   try{
+     ownerMfaState.pendingEnrollment=false;
+     byId('ownerMfaQr').removeAttribute('src');
+     byId('ownerMfaSetup').hidden=true;
+     await refreshOwnerMfa(sessionUser);
+   }catch(err){mfaStatus('Unable to refresh MFA status: '+(err.message||'try again'));}
+   finally{mfaBusy(false);}
+ });
+}
