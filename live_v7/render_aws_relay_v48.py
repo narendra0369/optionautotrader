@@ -60,6 +60,7 @@ def forward_owner_control(*, verified_owner_id, expected_owner_id,
         if result.get("liveOrdersEnabled") is not False:
             raise RelayBlocked("AWS_CONTROL_RESPONSE_INCONSISTENT")
         return {"awsControlAcknowledged":True,"mode":result.get("mode"),
+                "activationBlocked":result.get("mode")=="BLOCKED",
                 "liveOrdersEnabled":False,"canSubmitOrder":False}
     except (OSError,TimeoutError,ValueError,UnicodeDecodeError) as exc:
         if isinstance(exc,RelayBlocked): raise
