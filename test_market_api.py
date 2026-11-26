@@ -113,3 +113,5 @@ from live_v7.test_manual_sl_quote_v27 import V27ManualSLQuoteTests
 from live_v7.test_manual_sl_combined_preflight_v28 import V28CombinedManualSLPreflightTests
 
 from live_v7.test_manual_sl_order_readiness_v29 import V29ManualSlOrderReadinessTests
+
+from live_v7.test_manual_limit_exit_worker_v30 import V30ManualLimitExitTests
