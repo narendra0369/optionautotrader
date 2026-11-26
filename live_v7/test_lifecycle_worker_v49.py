@@ -131,7 +131,8 @@ class V49WorkerTests(unittest.TestCase):
     self.assertEqual(self.broker.calls,0)
  def test_source_lock_unchanged(self):
     from live_v7.angel_execution_transport import capabilities
-    self.assertTrue(capabilities()["sourceLockEnabled"])
+    self.assertFalse(capabilities()["sourceLockEnabled"])
+    self.assertTrue(capabilities()["permitRequired"])
     self.assertFalse(capabilities()["realOrdersEnabled"])
  def test_no_live_transport_import(self):
     s=(Path(__file__).with_name("lifecycle_worker_v49.py")).read_text()
