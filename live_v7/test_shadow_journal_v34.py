@@ -42,9 +42,9 @@ class V34ShadowJournalTests(unittest.TestCase):
         self.assertEqual(row["result"], "EXISTING_SHADOW_NO_RESEND")
         self.assertFalse(row["canRetryBrokerSend"])
 
-    def test_duplicate_changed_payload_blocked(self):
+    def test_changed_payload_blocked_before_duplicate_check(self):
         self.start()
-        with self.assertRaisesRegex(ShadowBlocked, "IDEMPOTENCY_CONFLICT"):
+        with self.assertRaisesRegex(ShadowBlocked, "DRAFT_MISMATCH"):
             self.start(draft=dict(DRAFT, limit="10.55"))
 
     def test_unknown_send_is_simulated_only(self):
