@@ -13,6 +13,8 @@ import secrets
 import ssl
 import urllib.parse
 import urllib.request
+import urllib.error
+import socket
 from .signed_owner_commands_v48 import sign_from_trusted_gateway
 
 class RelayBlocked(ValueError):pass
@@ -62,6 +64,20 @@ def forward_owner_control(*, verified_owner_id, expected_owner_id,
         return {"awsControlAcknowledged":True,"mode":result.get("mode"),
                 "activationBlocked":result.get("mode")=="BLOCKED",
                 "liveOrdersEnabled":False,"canSubmitOrder":False}
-    except (OSError,TimeoutError,ValueError,UnicodeDecodeError) as exc:
+    except urllib.error.HTTPError as exc:
+        # Reveal only upstream HTTP status classification, never response,
+        # request signature, bearer credentials or the HMAC secret.
+        if exc.code in (401,403):
+            raise RelayBlocked("AWS_SIGNED_COMMAND_REJECTED") from None
+        if exc.code == 404:
+            raise RelayBlocked("AWS_CONTROL_ROUTE_NOT_FOUND") from None
+        if exc.code == 503:
+            raise RelayBlocked("AWS_RECEIVER_INTERNAL_UNAVAILABLE") from None
+        raise RelayBlocked("AWS_UPSTREAM_HTTP_ERROR") from None
+    except (socket.timeout, TimeoutError):
+        raise RelayBlocked("AWS_CONNECTION_TIMEOUT") from None
+    except (urllib.error.URLError, ConnectionError, OSError):
+        raise RelayBlocked("AWS_TLS_OR_NETWORK_ERROR") from None
+    except (ValueError, UnicodeDecodeError) as exc:
         if isinstance(exc,RelayBlocked): raise
-        raise RelayBlocked("AWS_CONTROL_UNAVAILABLE_OR_AMBIGUOUS") from None
+        raise RelayBlocked("AWS_RESPONSE_INVALID") from None
