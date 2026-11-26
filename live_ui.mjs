@@ -64,6 +64,89 @@ export function planGreekExit(d){
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
+ // Owner-only read of the server's persisted execution gate; NEVER unlock
+ // by toggling client flags, changing DOM state or sending an order.
+ const activationAttempt=$('ownerLiveActivationAttempt');
+ if(activationAttempt){
+  activationAttempt.addEventListener('click',async()=>{
+    activationAttempt.disabled=true;
+    const report=$('ownerLiveUnlockStatus');
+    const badge=$('ownerLiveUnlockBadge');
+    const items=$('ownerLiveUnlockChecks');
+    badge.textContent='VERIFYING · REAL ORDERS OFF';
+    report.textContent='Checking live eligibility against authenticated server requirements…';
+    items.replaceChildren();
+    try{
+      const result=await request('/api/v51/owner/activate',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+      });
+      // An ACK of the command is not proof that Angel orders are enabled.
+      badge.textContent='REAL ORDERS OFF';
+      report.textContent=result.activationBlocked
+        ?'AWS received the unlock request but production approval is incomplete. Real orders remain OFF.'
+        :'AWS received the request. Check the independent execution worker status; this screen has NOT verified real order permission.';
+      for(const item of result.blockers||[]){
+        const line=document.createElement('div');
+        line.className='live-check';
+        const label=document.createElement('strong');
+        label.textContent='BLOCKED · '+String(item).slice(0,80);
+        line.append(label);items.append(line);
+      }
+    }catch(_error){
+      badge.textContent='REAL ORDERS OFF';
+      report.textContent='Owner or server verification unavailable; live orders remain OFF.';
+    }finally{activationAttempt.disabled=false;}
+  });
+ }
+ const unlockRequest=$('ownerLiveUnlockRequest');
+ if(unlockRequest){
+  unlockRequest.addEventListener('click',async()=>{
+   if(!user){$('ownerLiveUnlockStatus').textContent='Sign in as the configured owner first.';return;}
+   if(!confirm('Request a review of real trading eligibility? This does NOT enable or place real orders.'))return;
+   unlockRequest.disabled=true;
+   $('ownerLiveUnlockStatus').textContent='Sending owner review request to AWS control channel…';
+   try{
+     const result=await request('/api/v48/owner/request-unlock-review',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+     });
+     $('ownerLiveUnlockBadge').textContent='REVIEW REQUESTED · REAL OFF';
+     $('ownerLiveUnlockStatus').textContent=result.awsControlAcknowledged
+       ?'AWS recorded your unlock review request. Execution remains OFF until separately certified.'
+       :'AWS did not confirm the control request. Real orders remain OFF.';
+   }catch(_error){
+     $('ownerLiveUnlockBadge').textContent='REAL ORDERS OFF';
+     $('ownerLiveUnlockStatus').textContent='AWS control review request was not confirmed. No unlock or order occurred.';
+   }finally{unlockRequest.disabled=false;}
+  });
+ }
+ const unlockButton=$('ownerLiveUnlockCheck');
+ const unlockStatus=$('ownerLiveUnlockStatus');
+ const unlockBadge=$('ownerLiveUnlockBadge');
+ const unlockChecks=$('ownerLiveUnlockChecks');
+ if(unlockButton&&unlockStatus&&unlockBadge&&unlockChecks){
+  unlockButton.addEventListener('click',async()=>{
+   unlockButton.disabled=true;
+   unlockStatus.textContent='Checking authenticated owner and production execution prerequisites…';
+   unlockBadge.textContent='VERIFYING · REAL OFF';
+   unlockChecks.replaceChildren();
+   try{
+    const reply=await request('/api/v46/owner/live-unlock-status');
+    unlockBadge.textContent=reply.liveOrdersEnabled?'LIVE GATE ON':'REAL ORDERS OFF';
+    unlockStatus.textContent=reply.message||'Execution remains locked until independently certified.';
+    for(const code of reply.blockers||[]){
+     const line=document.createElement('div');
+     line.className='live-check';
+     const label=document.createElement('strong');
+     label.textContent='BLOCKED · '+String(code).slice(0,80);
+     line.append(label);
+     unlockChecks.append(line);
+    }
+   }catch(_error){
+    unlockBadge.textContent='REAL ORDERS OFF';
+    unlockStatus.textContent='Owner verification or backend check unavailable. No execution permission has been granted.';
+   }finally{unlockButton.disabled=false;}
+  });
+ }
  let selectedAngelCandles=null,angelCandleLoading=false;
  const msg=t=>{$('liveStatus').textContent=t};
  const setText=(id,t)=>{$(id).textContent=t};
