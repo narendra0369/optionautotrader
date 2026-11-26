@@ -74,11 +74,11 @@ def attempt_activation(db,*,data,signature,key,expected_owner,now=None):
                    server_evidence=evidence,now=stamp,
                    transport_is_source_locked=locked)
     except ActivationDenied:
-        return {"state":"BLOCKED","commandReceived":True,
+        return {"state":"BLOCKED","mode":"BLOCKED","commandAccepted":True,"commandReceived":True,
                 "liveOrdersEnabled":False,"canSubmitOrder":False,
                 "blockers":["PRODUCTION_BROKER_CERTIFICATION_INCOMPLETE",
                             "SOURCE_LOCK_OR_PRODUCTION_GATES_ACTIVE"]}
-    return {"state":result["state"],"commandReceived":True,
+    return {"state":result["state"],"mode":result["state"],"commandAccepted":True,"commandReceived":True,
             "liveOrdersEnabled":False,"canSubmitOrder":False,
             "expiresAt":result["expiresAt"],
             "message":"ARM lease only; a separate exact-order certified writer is required."}
