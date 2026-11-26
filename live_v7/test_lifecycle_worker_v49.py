@@ -115,6 +115,20 @@ class V49WorkerTests(unittest.TestCase):
     r=self.cycle()
     self.assertFalse(r["reconciliation"]["canSubmitOrder"])
     self.assertEqual(r["reason"],"SYNTHETIC_EVIDENCE_ONLY")
+ def test_malformed_preview_cannot_reach_ledger(self):
+    malformed=dict(DRAFT,unexpected="unknown")
+    with self.assertRaisesRegex(LifecycleBlocked,"SYNTHETIC_DRAFT_FIELDS_INVALID"):
+        run_mock_cycle(intent_db=self.intent,control_db=self.ctrl,
+          owner_id=OWNER,intent_key="v49-bad-preview",draft=malformed,
+          now=NOW,mock_gateway=self.broker,scenario="COMPLETE")
+    self.assertEqual(self.broker.calls,0)
+ def test_preview_live_flag_cannot_override_stop(self):
+    malicious=dict(DRAFT,canSubmitOrder=True)
+    with self.assertRaisesRegex(LifecycleBlocked,"SYNTHETIC_DRAFT_MUST_REMAIN_LOCKED"):
+        run_mock_cycle(intent_db=self.intent,control_db=self.ctrl,
+          owner_id=OWNER,intent_key="v49-bad-flag",draft=malicious,
+          now=NOW,mock_gateway=self.broker,scenario="COMPLETE")
+    self.assertEqual(self.broker.calls,0)
  def test_source_lock_unchanged(self):
     from live_v7.angel_execution_transport import capabilities
     self.assertTrue(capabilities()["sourceLockEnabled"])
