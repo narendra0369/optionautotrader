@@ -223,6 +223,8 @@ function mfaStatus(message){byId('ownerMfaStatus').textContent=message;}
 function ownerMfaClear(){
  ownerMfaState.factorId=null;ownerMfaState.pendingEnrollment=false;
  byId('ownerMfaQr').removeAttribute('src');
+ byId('ownerMfaSetupKey').value='';
+ byId('ownerMfaManual').hidden=true;
  byId('ownerMfaCode').value='';
  byId('ownerMfaSetup').hidden=true;
  byId('ownerMfaVerifyForm').hidden=true;
@@ -276,13 +278,14 @@ async function refreshOwnerMfa(user){
  }
 }
 function ownerQrSrc(value){
- if(typeof value!=='string'||value.length>300000)throw Error('QR image unavailable.');
- const raw=value.trim();
- if(raw.startsWith('data:image/svg+xml'))return raw;
- if(raw.startsWith('<svg') && raw.includes('</svg>'))
+ if(typeof value!=='string'||value.length>300000)return null;
+ const raw=value.trim().replace(/^\uFEFF/,'');
+ if(/^data:image\/(?:svg\+xml|png);/i.test(raw))return raw;
+ if((raw.startsWith('<svg')||raw.startsWith('<?xml')) && /<svg(?:\s|>)/i.test(raw) && raw.includes('</svg>'))
    return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(raw);
- throw Error('Supabase returned an unsupported QR image.');
+ return null;
 }
+
 function initOwnerMfa(){
  byId('ownerMfaEnroll').addEventListener('click',async()=>{
    if(!client||!sessionUser||ownerMfaState.busy)return;
@@ -304,10 +307,20 @@ function initOwnerMfa(){
      });
      if(enrolled.error)throw enrolled.error;
      const factor=enrolled.data;
-     if(!factor?.id||!factor.totp?.qr_code)throw Error('Supabase returned no enrollment QR.');
+     if(!factor?.id || (!factor.totp?.qr_code && !factor.totp?.secret))
+       throw Error('Supabase returned no authenticator enrollment details.');
      ownerMfaState.factorId=factor.id;
      ownerMfaState.pendingEnrollment=true;
-     byId('ownerMfaQr').src=ownerQrSrc(factor.totp.qr_code);
+     const image=ownerQrSrc(factor.totp?.qr_code);
+     const secret=typeof factor.totp?.secret==='string' ? factor.totp.secret : '';
+     const qrElement=byId('ownerMfaQr');
+     const manual=byId('ownerMfaManual');
+     const setupKey=byId('ownerMfaSetupKey');
+     setupKey.value=secret;
+     manual.hidden=!secret;
+     qrElement.hidden=!image;
+     qrElement.onerror=()=>{qrElement.hidden=true;manual.hidden=!secret;};
+     if(image)qrElement.src=image;else qrElement.removeAttribute('src');
      byId('ownerMfaSetup').hidden=false;
      byId('ownerMfaVerifyForm').hidden=false;
      byId('ownerMfaChallenge').hidden=true;
@@ -336,6 +349,8 @@ function initOwnerMfa(){
      ownerMfaState.pendingEnrollment=false;
      byId('ownerMfaCode').value='';
      byId('ownerMfaQr').removeAttribute('src');
+     byId('ownerMfaSetupKey').value='';
+     byId('ownerMfaManual').hidden=true;
      byId('ownerMfaSetup').hidden=true;
      mfaStatus('Code verified. Checking Supabase Auth assurance level…');
      await refreshOwnerMfa(sessionUser);
@@ -350,6 +365,8 @@ function initOwnerMfa(){
    try{
      ownerMfaState.pendingEnrollment=false;
      byId('ownerMfaQr').removeAttribute('src');
+     byId('ownerMfaSetupKey').value='';
+     byId('ownerMfaManual').hidden=true;
      byId('ownerMfaSetup').hidden=true;
      await refreshOwnerMfa(sessionUser);
    }catch(err){mfaStatus('Unable to refresh MFA status: '+(err.message||'try again'));}
