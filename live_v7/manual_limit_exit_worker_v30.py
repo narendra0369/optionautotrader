@@ -8,7 +8,6 @@ can enable execution. Not a production order journal.
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import os
 from datetime import datetime, timezone
@@ -54,7 +53,7 @@ def preview_manual_exit(*,positions,orders,ltp,as_of,verified_owner=True):
         raise PreviewBlocked("OWNER_UNVERIFIED")
     if not isinstance(as_of,datetime) or as_of.utcoffset() is None:
         raise PreviewBlocked("AWARE_SNAPSHOT_TIME_REQUIRED")
-    if (datetime.now(timezone.utc)-as_of).total_seconds() not in range(0,11):
+    if not 0 <= (datetime.now(timezone.utc)-as_of).total_seconds() <= 10:
         raise PreviewBlocked("BROKER_SNAPSHOT_NOT_FRESHLY_RECEIVED")
     if not isinstance(orders,list) or not isinstance(positions,list):
         raise PreviewBlocked("BROKER_BOOK_SHAPE_INVALID")
