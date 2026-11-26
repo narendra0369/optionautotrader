@@ -254,10 +254,24 @@ async function refreshOwnerMfa(user){
  if(!sessionUser || sessionUser.id!==user.id)return;
  const verified=(result.data?.totp||[]).find(f=>f.status==='verified');
  if(!verified){
-   ownerMfaState.factorId=null;
+   // Supabase listFactors().totp may exclude unverified enrollments.
+   // Pick the newest unfinished factor from .all for owners who have
+   // already saved their secret key in Google Authenticator.
+   const unverified=(result.data?.all||[])
+     .filter(f=>f.factor_type==='totp' && f.status==='unverified')
+     .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+   const pending=(unverified.find(f=>f.id===ownerMfaState.factorId)||unverified[0]);
+   ownerMfaState.factorId=pending?.id||null;
    byId('ownerMfaEnroll').disabled=false;
-   byId('ownerMfaChallenge').hidden=true;
-   mfaStatus('Google Authenticator is not enabled. Select Enable to scan your private QR code.');
+   byId('ownerMfaChallenge').hidden=!pending;
+   byId('ownerMfaChallenge').disabled=!pending;
+   byId('ownerMfaVerifyForm').hidden=!pending;
+   if(pending){
+     mfaStatus('Authenticator setup is pending, not yet verified. If you saved the latest setup key, enter the 6-digit code below. Otherwise press Enable to create a new setup key.');
+   } else {
+     byId('ownerMfaVerifyForm').hidden=true;
+     mfaStatus('Google Authenticator is not enabled. Select Enable to get a private setup key.');
+   }
    return;
  }
  ownerMfaState.factorId=verified.id;
@@ -337,7 +351,8 @@ function initOwnerMfa(){
  });
  byId('ownerMfaVerifyForm').addEventListener('submit',async(event)=>{
    event.preventDefault();
-   if(!client||!sessionUser||!ownerMfaState.factorId||ownerMfaState.busy)return;
+   if(!client||!sessionUser||ownerMfaState.busy)return;
+   if(!ownerMfaState.factorId){mfaStatus('No pending factor selected. Press Refresh MFA Status.');return;}
    const code=byId('ownerMfaCode').value.trim();
    if(!/^[0-9]{6}$/.test(code)){mfaStatus('Enter exactly six digits.');return;}
    mfaBusy(true);
@@ -363,11 +378,8 @@ function initOwnerMfa(){
    if(!sessionUser||ownerMfaState.busy)return;
    mfaBusy(true);
    try{
-     ownerMfaState.pendingEnrollment=false;
-     byId('ownerMfaQr').removeAttribute('src');
-     byId('ownerMfaSetupKey').value='';
-     byId('ownerMfaManual').hidden=true;
-     byId('ownerMfaSetup').hidden=true;
+     // Refresh factor list without discarding the pending enrollment.
+     // A previously saved setup key remains usable for verification.
      await refreshOwnerMfa(sessionUser);
    }catch(err){mfaStatus('Unable to refresh MFA status: '+(err.message||'try again'));}
    finally{mfaBusy(false);}
