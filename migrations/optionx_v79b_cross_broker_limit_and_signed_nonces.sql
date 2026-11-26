@@ -73,7 +73,7 @@ CREATE OR REPLACE FUNCTION public.optionx_v79_consume_worker_nonce(
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, optionx_private
 AS $fn$
-DECLARE v_accepted boolean:=false;
+DECLARE v_inserted bigint:=0;
 BEGIN
  IF p_owner IS NULL OR p_worker IS NULL OR p_nonce IS NULL THEN RETURN false; END IF;
  IF NOT EXISTS(
@@ -86,8 +86,8 @@ BEGIN
  INSERT INTO optionx_private.v79_worker_signed_nonces(owner_id,worker_id,nonce)
  VALUES(p_owner,p_worker,p_nonce)
  ON CONFLICT DO NOTHING;
- GET DIAGNOSTICS v_accepted=ROW_COUNT;
- RETURN v_accepted;
+ GET DIAGNOSTICS v_inserted=ROW_COUNT;
+ RETURN v_inserted=1;
 END
 $fn$;
 REVOKE ALL ON FUNCTION public.optionx_v79_consume_worker_nonce(uuid,uuid,uuid)
