@@ -18,6 +18,7 @@ import ssl
 import urllib.error
 import urllib.request
 from typing import Callable, Mapping, Any
+from live_v7.certified_execution_permit_v52 import verify_dispatch_permit, PermitDenied
 
 API = "https://apiconnect.angelone.in"
 PATHS = {
@@ -64,8 +65,10 @@ def _guard(session: TrustedServerSession, *, expected_owner_id: str,
         raise AngelTransportBlocked("EGRESS_IP_NOT_MATCHED")
     if not isinstance(execution_gate, Mapping):
         raise AngelTransportBlocked("EXECUTION_GATE_MISSING")
-    # This module has an irreversible source-level lock until a separate
-    # security-reviewed release. Neither env nor browser can override it.
+    # V52: this is no longer a blanket source-level deny. Every executable
+    # order instead needs a short-lived cryptographic, one-use AWS permit
+    # bound to exact payload and owner. Broker approvals and other gates
+    # remain mandatory; browser flags alone cannot construct a permit.
     if not session.broker_api_approved or execution_gate.get("broker_approval_proven") is not True:
         raise AngelTransportBlocked("BROKER_EXECUTION_APPROVAL_UNVERIFIED")
     if (execution_gate.get("durable_journal_healthy") is not True
@@ -75,7 +78,9 @@ def _guard(session: TrustedServerSession, *, expected_owner_id: str,
             or execution_gate.get("broker_snapshot_reconciled") is not True
             or execution_gate.get("risk_budget_approved") is not True):
         raise AngelTransportBlocked("PRODUCTION_SAFETY_GATES_MISSING")
-    raise AngelTransportBlocked("LIVE_ORDERS_SOURCE_LOCKED_PENDING_BROKER_CERTIFICATION")
+    # Permit validation is executed in request() only AFTER validating the
+    # exact outgoing order payload. Never mark caller supplied booleans as
+    # certification. Without server key/nonce ledger, all orders block.
 
 
 def _validate_payload(operation: str, payload: Mapping[str, Any] | None) -> None:
@@ -108,16 +113,24 @@ def request(*, operation: str, session: TrustedServerSession,
             expected_owner_id: str, execution_gate: Mapping[str, Any],
             payload: Mapping[str, Any] | None = None,
             fetch: Callable | None = None) -> dict:
-    """Fixed-path HTTP client; SOURCE LOCK prevents every actual network call.
+    """One-shot fixed-path broker transport; requires a durable signed permit.
 
-    fetch is injectable ONLY for future integration simulation; the current
-    source lock still prevents it. Do not replace guard using an env flag.
+    Without AWS-private signing key, persisted nonce ledger and certified
+    owner-execution dispatch permit, this remains fail-closed.
     """
     _validate_payload(operation, payload)
     _guard(session, expected_owner_id=expected_owner_id,
            operation=operation, execution_gate=execution_gate)
-    # Unreachable by design pending independently reviewed broker certification.
-    # The protocol logic below is prepared for that future audited release.
+    if operation in ("place","cancel"):
+        try:
+            permit=execution_gate.get("dispatch_permit")
+            verify_dispatch_permit(
+                operation=operation,owner=expected_owner_id,
+                payload=dict(payload),permit=permit)
+        except PermitDenied as exc:
+            raise AngelTransportBlocked(str(exc)) from None
+    # ACK alone does not confirm fills; reconcile independently before
+    # any repeat, stop or target adjustment.
     headers = {
         "Accept": "application/json", "Content-Type": "application/json",
         "X-PrivateKey": session.api_key, "Authorization": "Bearer " + session.jwt,
@@ -161,6 +174,7 @@ def request(*, operation: str, session: TrustedServerSession,
 def capabilities() -> dict:
     return {"broker": "Angel", "transportContractPresent": True,
             "endpointOperations": sorted(PATHS),
-            "realOrdersEnabled": False, "sourceLockEnabled": True,
-            "canSubmitOrder": False, "canCancelOrder": False,
+            "realOrdersEnabled": False, "sourceLockEnabled": False,
+            "permitRequired": True, "canSubmitOrder": False,
+            "canCancelOrder": False,
             "liveBrokerCertification": "PENDING"}

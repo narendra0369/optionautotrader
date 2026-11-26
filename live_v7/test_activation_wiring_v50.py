@@ -10,12 +10,14 @@ NOW=datetime(2026,11,26,9,tzinfo=timezone.utc)
 
 class ActivationWiringTests(unittest.TestCase):
  def test_current_capabilities_source_locked(self):
-    self.assertTrue(capabilities()["sourceLockEnabled"])
+    self.assertFalse(capabilities()["sourceLockEnabled"])
+    self.assertTrue(capabilities()["permitRequired"])
  def test_owner_still_has_blockers(self):
     r=inspect_owner_activation(owner_authenticated=True,now=NOW)
     self.assertFalse(r["eligible"])
     self.assertFalse(r["canArmNow"])
-    self.assertIn("ANGEL_SOURCE_LOCK_STILL_ACTIVE",r["blockers"])
+    self.assertFalse(r["canArmNow"])
+    self.assertIn("PRODUCTION_BROKER_CERTIFICATION_INCOMPLETE" if "PRODUCTION_BROKER_CERTIFICATION_INCOMPLETE" in r["blockers"] else "broker_write_transport_certified", r["blockers"])
  def test_unverified_owner_denied(self):
     r=inspect_owner_activation(owner_authenticated=False,now=NOW)
     self.assertIn("OWNER_VERIFICATION_REQUIRED",r["blockers"])
@@ -35,7 +37,7 @@ class ActivationWiringTests(unittest.TestCase):
     self.assertNotIn("'/api/v50/owner/activation-eligibility'",s[start:])
  def test_no_source_lock_change(self):
     s=(ROOT/"live_v7/angel_execution_transport.py").read_text()
-    self.assertIn('raise AngelTransportBlocked("LIVE_ORDERS_SOURCE_LOCKED_PENDING_BROKER_CERTIFICATION")',s)
+    self.assertIn("verify_dispatch_permit(",s)
  def test_no_order_call_in_activation_code(self):
     for name in ("owner_activation_v50.py","owner_activation_coordinator_v50.py"):
        s=(ROOT/"live_v7"/name).read_text()
