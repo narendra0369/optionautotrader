@@ -20,6 +20,7 @@ from dual_brokers import catalog as broker_catalog, delta_product, delta_product
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
 from live_v7.owner_live_unlock_v46 import live_unlock_status as v46_live_unlock_status
+from live_v7.owner_activation_coordinator_v50 import inspect_owner_activation
 from live_v7.render_aws_relay_v48 import forward_owner_control, RelayBlocked
 from live_v7.egress_diagnostic import check_egress
 from live_v7.angel_greeks import angel_selected_contract_greeks
@@ -184,6 +185,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(423, {'error': 'EGRESS_DIAGNOSTIC_DISABLED', 'canSubmitOrder': False})
             return self._json(200, check_egress(
                 registered_ipv4=os.getenv('OPTIONX_ANGEL_REGISTERED_IPV4', '').strip()))
+        if path.path == '/api/v50/owner/activation-eligibility':
+            # Read-only. This Render process CANNOT certify the AWS broker
+            # worker and never trusts browser-submitted proof flags.
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403, {'error':'OWNER_ONLY',
+                                        'liveOrdersEnabled':False})
+            return self._json(200, inspect_owner_activation(
+                owner_authenticated=True))
         if path.path == '/api/v46/owner/live-unlock-status':
             # Trusted Supabase session AND server-side owner binding required.
             # This endpoint is GET/READ-ONLY, with no broker order or gate write.
