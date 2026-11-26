@@ -72,8 +72,16 @@ class V43DurableIntentTests(unittest.TestCase):
  def test_file_permissions(self):
     self.assertEqual(self.path.stat().st_mode&0o777,0o600)
  def test_world_readable_directory_blocked(self):
-    with self.assertRaisesRegex(IntentBlocked,"PRIVATE_DIRECTORY_PERMISSIONS"):
-       open_ledger(Path(self.temp.name)/"public.db")
+    # TemporaryDirectory is normally 0700; explicitly simulate the unsafe
+    # 0755 parent so the test works regardless of host umask or pytest runner.
+    public=Path(self.temp.name)/"public"
+    public.mkdir(mode=0o700)
+    public.chmod(0o755)
+    try:
+       with self.assertRaisesRegex(IntentBlocked,"PRIVATE_DIRECTORY_PERMISSIONS"):
+          open_ledger(public/"public.db")
+    finally:
+       public.chmod(0o700)
  def test_relative_path_blocked(self):
     with self.assertRaisesRegex(IntentBlocked,"ABSOLUTE"):
        open_ledger("test.db")
