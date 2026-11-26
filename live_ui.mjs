@@ -64,6 +64,36 @@ export function planGreekExit(d){
 export function mountLive({client, onPage}){
  let user=null, busy=false, last=null, loadingProducts=false, lastMarket='NIFTY';
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
+ // Owner-only read of the server's persisted execution gate; NEVER unlock
+ // by toggling client flags, changing DOM state or sending an order.
+ const unlockButton=$('ownerLiveUnlockCheck');
+ const unlockStatus=$('ownerLiveUnlockStatus');
+ const unlockBadge=$('ownerLiveUnlockBadge');
+ const unlockChecks=$('ownerLiveUnlockChecks');
+ if(unlockButton&&unlockStatus&&unlockBadge&&unlockChecks){
+  unlockButton.addEventListener('click',async()=>{
+   unlockButton.disabled=true;
+   unlockStatus.textContent='Checking authenticated owner and production execution prerequisites…';
+   unlockBadge.textContent='VERIFYING · REAL OFF';
+   unlockChecks.replaceChildren();
+   try{
+    const reply=await request('/api/v46/owner/live-unlock-status');
+    unlockBadge.textContent=reply.liveOrdersEnabled?'LIVE GATE ON':'REAL ORDERS OFF';
+    unlockStatus.textContent=reply.message||'Execution remains locked until independently certified.';
+    for(const code of reply.blockers||[]){
+     const line=document.createElement('div');
+     line.className='live-check';
+     const label=document.createElement('strong');
+     label.textContent='BLOCKED · '+String(code).slice(0,80);
+     line.append(label);
+     unlockChecks.append(line);
+    }
+   }catch(_error){
+    unlockBadge.textContent='REAL ORDERS OFF';
+    unlockStatus.textContent='Owner verification or backend check unavailable. No execution permission has been granted.';
+   }finally{unlockButton.disabled=false;}
+  });
+ }
  let selectedAngelCandles=null,angelCandleLoading=false;
  const msg=t=>{$('liveStatus').textContent=t};
  const setText=(id,t)=>{$(id).textContent=t};
