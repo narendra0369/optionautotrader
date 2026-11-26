@@ -45,7 +45,7 @@ BEGIN
   IF p_broker NOT IN ('Angel','Delta') OR p_broker IS NULL
      OR p_day IS DISTINCT FROM (v_now AT TIME ZONE 'Asia/Kolkata')::date
      OR p_limit IS NULL OR p_limit<=0
-     OR p_entries NOT BETWEEN 1 AND 2 THEN
+     OR p_entries IS NULL OR p_entries NOT BETWEEN 1 AND 2 THEN
     RAISE EXCEPTION 'V79_INVALID_REVIEW_SCOPE' USING ERRCODE='22023';
   END IF;
   SELECT EXISTS(
