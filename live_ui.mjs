@@ -66,6 +66,33 @@ export function mountLive({client, onPage}){
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
  // Owner-only read of the server's persisted execution gate; NEVER unlock
  // by toggling client flags, changing DOM state or sending an order.
+ const activationAttempt=$('ownerLiveActivationAttempt');
+ if(activationAttempt){
+  activationAttempt.addEventListener('click',async()=>{
+    activationAttempt.disabled=true;
+    const report=$('ownerLiveUnlockStatus');
+    const badge=$('ownerLiveUnlockBadge');
+    const items=$('ownerLiveUnlockChecks');
+    badge.textContent='VERIFYING · REAL ORDERS OFF';
+    report.textContent='Checking live eligibility against authenticated server requirements…';
+    items.replaceChildren();
+    try{
+      const result=await request('/api/v50/owner/activation-eligibility');
+      badge.textContent='REAL ORDERS OFF';
+      report.textContent=result.message||'Activation unavailable until AWS execution is independently certified.';
+      for(const item of result.blockers||[]){
+        const line=document.createElement('div');
+        line.className='live-check';
+        const label=document.createElement('strong');
+        label.textContent='BLOCKED · '+String(item).slice(0,80);
+        line.append(label);items.append(line);
+      }
+    }catch(_error){
+      badge.textContent='REAL ORDERS OFF';
+      report.textContent='Owner or server verification unavailable; live orders remain OFF.';
+    }finally{activationAttempt.disabled=false;}
+  });
+ }
  const unlockRequest=$('ownerLiveUnlockRequest');
  if(unlockRequest){
   unlockRequest.addEventListener('click',async()=>{
