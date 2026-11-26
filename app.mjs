@@ -292,9 +292,15 @@ function initOwnerMfa(){
      if(f.error)throw f.error;
      if((f.data?.totp||[]).some(x=>x.status==='verified'))
        throw Error('Authenticator already enabled. Refresh status to verify the current login.');
+     // Each new attempt must have a unique name. A previous unfinished
+     // factor may exist, but its private QR secret cannot be recovered.
+     // Never unenroll or replace an existing verified factor automatically.
+     const attemptTag = (typeof crypto !== 'undefined' && crypto.randomUUID)
+       ? crypto.randomUUID().slice(0, 12)
+       : String(Date.now()) + '-' + String(Math.floor(Math.random()*1000000));
      const enrolled=await client.auth.mfa.enroll({
        factorType:'totp',
-       friendlyName:'OptionX Google Authenticator'
+       friendlyName:'OptionX Authenticator ' + attemptTag
      });
      if(enrolled.error)throw enrolled.error;
      const factor=enrolled.data;
