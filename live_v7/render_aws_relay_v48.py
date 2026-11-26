@@ -15,9 +15,25 @@ import urllib.parse
 import urllib.request
 import urllib.error
 import socket
+import logging
 from .signed_owner_commands_v48 import sign_from_trusted_gateway
 
 class RelayBlocked(ValueError):pass
+
+_LOG=logging.getLogger('optionx.aws_owner_relay')
+
+def _safe_transport_reason(exc):
+    # Never log exception messages, URL, private key, bearer, HTTP body or headers.
+    root=getattr(exc,'reason',exc)
+    if isinstance(root,ssl.SSLCertVerificationError): return 'TLS_CERT_VERIFY'
+    if isinstance(root,ssl.SSLError): return 'TLS_HANDSHAKE'
+    if isinstance(root,socket.gaierror): return 'DNS_RESOLUTION'
+    if isinstance(root,(socket.timeout,TimeoutError)): return 'SOCKET_TIMEOUT'
+    if isinstance(root,ConnectionRefusedError): return 'TCP_REFUSED'
+    if isinstance(root,ConnectionResetError): return 'TCP_RESET'
+    if isinstance(root,OSError) and getattr(root,'errno',None) in (101,113):return 'NETWORK_UNREACHABLE'
+    return 'TRANSPORT_OTHER'
+
 
 def forward_owner_control(*, verified_owner_id, expected_owner_id,
                           action, signing_key, aws_endpoint, now=None,
@@ -75,8 +91,10 @@ def forward_owner_control(*, verified_owner_id, expected_owner_id,
             raise RelayBlocked("AWS_RECEIVER_INTERNAL_UNAVAILABLE") from None
         raise RelayBlocked("AWS_UPSTREAM_HTTP_ERROR") from None
     except (socket.timeout, TimeoutError):
+        _LOG.warning("owner-relay transport_failure category=SOCKET_TIMEOUT")
         raise RelayBlocked("AWS_CONNECTION_TIMEOUT") from None
-    except (urllib.error.URLError, ConnectionError, OSError):
+    except (urllib.error.URLError, ConnectionError, OSError) as exc:
+        _LOG.warning("owner-relay transport_failure category=%s",_safe_transport_reason(exc))
         raise RelayBlocked("AWS_TLS_OR_NETWORK_ERROR") from None
     except (ValueError, UnicodeDecodeError) as exc:
         if isinstance(exc,RelayBlocked): raise
