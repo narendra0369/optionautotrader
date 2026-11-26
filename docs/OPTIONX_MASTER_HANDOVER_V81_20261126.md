@@ -32,3 +32,17 @@ If a signed request from a systemd-run transient with User=optionx-executor succ
 - Root cause: Python script was over-strict about `LoadCredential` file owner and mode: systemd credential file ownership/mode may vary by systemd release and are subject to private credential mount directory, not identical to original root-only source file. No evidence of key compromise; actual mode is not verified. Do NOT chmod original AWS private key or switch executor to root.
 - Revised Python proof checks `CREDENTIALS_DIRECTORY` under `/run/credentials/`, non-root executor euid, files with no symlinks, and effective read permission. The existing shell script checks original key root:0600, Ed25519 fingerprint and six services active. It runs a one-shot signed proof and replay check. GitHub source updated on V81 branch (look up HEAD after this handover update). FIRST V81 workload proof still PENDING; previous command did not reach HTTP 200/409.
 - Do not put `set -e` at top-level of the interactive SSH session; wrap verification in a subshell `( set -e; ... )` so failure does not terminate the login shell.
+
+## V81 REAL AWS SYSTEMD EXECUTOR PROOF — COMPLETED (2026-11-26)
+
+Operator ran the verified fixed V81 GitHub commit `640bd6da6f6785da2b9a4cb8a5bd8524fb97ab79` on original AWS instance:
+- Git fetch and exact commit SHA verification PASS.
+- Transient systemd service ran unprivileged as `optionx-executor`, LoadCredential mounted and readable: `PASS: UNPRIVILEGED_EXECUTOR_CREDENTIAL_MOUNTED`.
+- Signed challenge to the real Supabase V80 pending-key verification endpoint: HTTP **200**, `V80_PENDING_KEY_PROOF_VALID`, `PASS: SYSTEMD_EXECUTOR_SIGNED_REQUEST_ACCEPTED`.
+- Repeating the identical nonce: HTTP **409**, `PASS: SYSTEMD_EXECUTOR_NONCE_REPLAY_REJECTED`.
+- `V81_SYSTEMD_WORKLOAD_PROOF_COMPLETE`, transient unit exited successfully with status 0.
+- `V81_ALL_SIX_EXISTING_SERVICES_REMAIN_ACTIVE`, `LIVE_ORDERS_OFF`, no broker operations.
+- Independent Supabase SELECT after success confirms **2 total historical pending key proofs** (V80 + V81), latest at **2026-11-26 17:14:59.749715+00**. **0** independent worker attestations, **1 PENDING**, **0 VERIFIED**, database worker role NOLOGIN, **0** order intents and reservations.
+- This is actual unprivileged systemd credential handoff and signature proof, NOT independent hardware/image/process attestation or trade permission.
+- **DO NOT RETEST V80/V81 JUST TO PROGRESS.** Next: assess independent external workload provenance, reviewer approval process, short-lived credentials and scoped non-order authorization, preserving Owner STOP, existing services, and manual broker position.
+
