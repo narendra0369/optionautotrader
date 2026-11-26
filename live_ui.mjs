@@ -66,6 +66,27 @@ export function mountLive({client, onPage}){
  let selectedAngelContract=null,angelNfoLoading=false,angelQuoteLoading=false;
  // Owner-only read of the server's persisted execution gate; NEVER unlock
  // by toggling client flags, changing DOM state or sending an order.
+ const unlockRequest=$('ownerLiveUnlockRequest');
+ if(unlockRequest){
+  unlockRequest.addEventListener('click',async()=>{
+   if(!user){$('ownerLiveUnlockStatus').textContent='Sign in as the configured owner first.';return;}
+   if(!confirm('Request a review of real trading eligibility? This does NOT enable or place real orders.'))return;
+   unlockRequest.disabled=true;
+   $('ownerLiveUnlockStatus').textContent='Sending owner review request to AWS control channel…';
+   try{
+     const result=await request('/api/v48/owner/request-unlock-review',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+     });
+     $('ownerLiveUnlockBadge').textContent='REVIEW REQUESTED · REAL OFF';
+     $('ownerLiveUnlockStatus').textContent=result.awsControlAcknowledged
+       ?'AWS recorded your unlock review request. Execution remains OFF until separately certified.'
+       :'AWS did not confirm the control request. Real orders remain OFF.';
+   }catch(_error){
+     $('ownerLiveUnlockBadge').textContent='REAL ORDERS OFF';
+     $('ownerLiveUnlockStatus').textContent='AWS control review request was not confirmed. No unlock or order occurred.';
+   }finally{unlockRequest.disabled=false;}
+  });
+ }
  const unlockButton=$('ownerLiveUnlockCheck');
  const unlockStatus=$('ownerLiveUnlockStatus');
  const unlockBadge=$('ownerLiveUnlockBadge');
