@@ -234,7 +234,7 @@ function ownerMfaClear(){
 }
 function mfaBusy(isBusy){
  ownerMfaState.busy=!!isBusy;
- byId('ownerMfaEnroll').disabled=!!isBusy || !sessionUser || !!ownerMfaState.factorId;
+ byId('ownerMfaEnroll').disabled=!!isBusy || !sessionUser || ownerMfaState.pendingEnrollment;
  byId('ownerMfaChallenge').disabled=!!isBusy || !sessionUser;
  byId('ownerMfaVerifyButton').disabled=!!isBusy;
  byId('ownerMfaRefresh').disabled=!!isBusy || !sessionUser;
@@ -262,7 +262,8 @@ async function refreshOwnerMfa(user){
      .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
    const pending=(unverified.find(f=>f.id===ownerMfaState.factorId)||unverified[0]);
    ownerMfaState.factorId=pending?.id||null;
-   byId('ownerMfaEnroll').disabled=false;
+   byId('ownerMfaEnroll').disabled=ownerMfaState.pendingEnrollment;
+   byId('ownerMfaEnroll').textContent=pending?'Start new QR setup':'Enable Google Authenticator';
    byId('ownerMfaChallenge').hidden=!pending;
    byId('ownerMfaChallenge').disabled=!pending;
    byId('ownerMfaVerifyForm').hidden=!pending;
@@ -314,7 +315,15 @@ function ownerQrSrc(value){
 function initOwnerMfa(){
  byId('ownerMfaEnroll').addEventListener('click',async()=>{
    if(!client||!sessionUser||ownerMfaState.busy)return;
-   mfaBusy(true);mfaStatus('Requesting a private enrollment QR from Supabase Auth…');
+   if(ownerMfaState.pendingEnrollment){
+     mfaStatus('This enrollment is already pending. Enter its 6-digit code below. Do not generate another key.');
+     byId('ownerMfaVerifyForm').hidden=false;
+     return;
+   }
+   if(ownerMfaState.factorId &&
+      !window.confirm('An unfinished authenticator setup exists. Starting a NEW QR creates a DIFFERENT key. Continue only if the earlier key cannot be verified.'))
+     return;
+   mfaBusy(true);mfaStatus('Preparing one private Authenticator QR in your browser…');
    try{
      const f=await client.auth.mfa.listFactors();
      if(f.error)throw f.error;
@@ -336,8 +345,18 @@ function initOwnerMfa(){
        throw Error('Supabase returned no authenticator enrollment details.');
      ownerMfaState.factorId=factor.id;
      ownerMfaState.pendingEnrollment=true;
-     const image=ownerQrSrc(factor.totp?.qr_code);
      const secret=typeof factor.totp?.secret==='string' ? factor.totp.secret : '';
+     const otpUri=typeof factor.totp?.uri==='string' && factor.totp.uri.startsWith('otpauth://totp/')
+       ? factor.totp.uri
+       : secret ? 'otpauth://totp/'+encodeURIComponent('OPTIONX:'+sessionUser.email)
+          +'?secret='+encodeURIComponent(secret)+'&issuer=OPTIONX&algorithm=SHA1&digits=6&period=30' : '';
+     let image=null;
+     if(otpUri && typeof window.optionxQrFactory==='function'){
+       const qr=window.optionxQrFactory(0,'M');
+       qr.addData(otpUri);qr.make();
+       image='data:image/svg+xml;charset=utf-8,'+
+         encodeURIComponent(qr.createSvgTag({cellSize:6,margin:18}));
+     } else image=ownerQrSrc(factor.totp?.qr_code);
      const qrElement=byId('ownerMfaQr');
      const manual=byId('ownerMfaManual');
      const setupKey=byId('ownerMfaSetupKey');
@@ -350,7 +369,9 @@ function initOwnerMfa(){
      byId('ownerMfaSetup').hidden=false;
      byId('ownerMfaVerifyForm').hidden=false;
      byId('ownerMfaChallenge').hidden=true;
-     mfaStatus('Scan QR in Google Authenticator, then enter the 6-digit code to complete enrollment.');
+     byId('ownerMfaEnroll').disabled=true;
+     byId('ownerMfaEnroll').textContent='QR setup pending verification';
+     mfaStatus('Scan this ONE QR in Google Authenticator. Do not refresh until the 6-digit code has been verified.');
      byId('ownerMfaCode').focus();
    }catch(err){mfaStatus('MFA setup: '+(err.message||'Unable to enroll.')); }
    finally{mfaBusy(false);}
