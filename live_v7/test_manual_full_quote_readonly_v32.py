@@ -9,7 +9,7 @@ NOW=datetime(2026,11,26,6,10,0,tzinfo=timezone.utc)
 
 def sample(**changes):
     row=dict(symbolToken=TOKEN,tradingSymbol=SYMBOL,exchange="NFO",
-             ltp=10.80,exchFeedTime=NOW.strftime("%d-%b-%Y %H:%M:%S"),
+             ltp=10.80,exchFeedTime=(NOW+timedelta(hours=5,minutes=30)).strftime("%d-%b-%Y %H:%M:%S"),
              depth={"buy":[{"price":10.75,"quantity":65}],
                     "sell":[{"price":10.85,"quantity":130}]})
     row.update(changes)
@@ -74,7 +74,7 @@ class V32ReadOnlyFullQuoteTests(unittest.TestCase):
                               "sell":[{"price":10.85,"quantity":65}]})
 
     def test_stale_feed_remains_unverified(self):
-        q=self.parse(exchFeedTime=(NOW-timedelta(minutes=1)).strftime("%d-%b-%Y %H:%M:%S"))
+        q=self.parse(exchFeedTime=(NOW+timedelta(hours=5,minutes=29)).strftime("%d-%b-%Y %H:%M:%S"))
         self.assertFalse(q["brokerReportedFeedAgeWithin10s"])
 
     def test_feed_timestamp_missing_remains_unverified(self):
@@ -83,13 +83,17 @@ class V32ReadOnlyFullQuoteTests(unittest.TestCase):
         self.assertFalse(q["brokerReportedFeedAgeWithin10s"])
 
     def test_future_feed_rejected_for_freshness(self):
-        q=self.parse(exchFeedTime=(NOW+timedelta(seconds=20)).strftime("%d-%b-%Y %H:%M:%S"))
+        q=self.parse(exchFeedTime=(NOW+timedelta(hours=5,minutes=30,seconds=20)).strftime("%d-%b-%Y %H:%M:%S"))
         self.assertFalse(q["brokerReportedFeedAgeWithin10s"])
 
     def test_bid_below_draft_limit_does_not_promise_fill(self):
         q=self.parse(depth={"buy":[{"price":10.45,"quantity":5}],
                             "sell":[{"price":10.60,"quantity":10}]})
         self.assertFalse(q["bidAtOrAboveDraftLimit"])
+
+    def test_broker_ist_clock_is_converted_to_utc(self):
+        q=self.parse(exchFeedTime="26-Nov-2026 11:40:00")
+        self.assertEqual(q["brokerFeedTimestampUTC"],NOW.isoformat())
 
     def test_epoch_milliseconds(self):
         q=self.parse(exchFeedTime=str(int(NOW.timestamp()*1000)))
