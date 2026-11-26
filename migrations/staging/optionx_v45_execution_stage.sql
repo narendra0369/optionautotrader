@@ -8,7 +8,7 @@ REVOKE ALL ON SCHEMA optionx_exec_stage FROM PUBLIC;
 CREATE TABLE IF NOT EXISTS optionx_exec_stage.guard (
   owner_id uuid PRIMARY KEY,
   state text NOT NULL DEFAULT 'STOPPED'
-    CHECK (state = 'STOPPED'),
+    CHECK (state IN ('STOPPED','MOCK_ONLY')),
   new_orders_blocked boolean NOT NULL DEFAULT TRUE
     CHECK (new_orders_blocked = TRUE),
   changed_at timestamptz NOT NULL DEFAULT now()
