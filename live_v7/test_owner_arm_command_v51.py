@@ -92,7 +92,7 @@ class V51ActivationTests(unittest.TestCase):
     def test_broker_source_still_locked(self):
         from live_v7.angel_execution_transport import capabilities
         self.assertFalse(capabilities()["sourceLockEnabled"])
-    self.assertTrue(capabilities()["permitRequired"])
+        self.assertTrue(capabilities()["permitRequired"])
     def test_worker_evidence_not_browser_data(self):
         from live_v7.owner_arm_command_v51 import _trusted_aws_evidence
         self.assertFalse(any(_trusted_aws_evidence().values()))
