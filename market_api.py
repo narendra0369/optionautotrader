@@ -432,8 +432,24 @@ class Handler(BaseHTTPRequestHandler):
                     signing_key=os.getenv('OPTIONX_V48_CONTROL_HMAC_KEY','').encode('utf-8'),
                     aws_endpoint=os.getenv('OPTIONX_V48_AWS_HTTPS_URL',''))
                 return self._json(200,response)
-            except (RelayBlocked,ValueError,TypeError):
-                return self._json(503, {'error':'AWS_OWNER_CONTROL_NOT_CONFIRMED',
+            except (RelayBlocked,ValueError,TypeError) as exc:
+                allowed = {
+                    'AWS_SIGNED_COMMAND_REJECTED',
+                    'AWS_CONTROL_ROUTE_NOT_FOUND',
+                    'AWS_RECEIVER_INTERNAL_UNAVAILABLE',
+                    'AWS_UPSTREAM_HTTP_ERROR',
+                    'AWS_CONNECTION_TIMEOUT',
+                    'AWS_TLS_OR_NETWORK_ERROR',
+                    'AWS_RESPONSE_INVALID',
+                    'AWS_CONTROL_NOT_ACKNOWLEDGED',
+                    'AWS_CONTROL_RESPONSE_INCONSISTENT',
+                    'AWS_RESPONSE_OVERSIZE',
+                    'AWS_ENDPOINT_NOT_CONFIGURED',
+                    'PINNED_HTTPS_AWS_ENDPOINT_REQUIRED',
+                    'STRONG_SERVER_KEY_REQUIRED',
+                }
+                error = str(exc) if str(exc) in allowed else 'AWS_OWNER_CONTROL_NOT_CONFIRMED'
+                return self._json(503, {'error':error,
                                         'liveOrdersEnabled':False})
         if path in ('/api/brokers/stoxkart/start', '/api/brokers/stoxkart/complete', '/api/brokers/stoxkart/disconnect'):
             # Stoxkart credentials are accepted ONLY from the dedicated staging
