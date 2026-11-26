@@ -115,7 +115,16 @@ export function mountLive({client, onPage}){
        :'AWS did not confirm the control request. Real orders remain OFF.';
    }catch(_error){
      $('ownerLiveUnlockBadge').textContent='REAL ORDERS OFF';
-     $('ownerLiveUnlockStatus').textContent='AWS control review request was not confirmed. No unlock or order occurred.';
+     const raw=String(_error?.message||'');
+     // Only show allowlisted, low-sensitivity error codes. Never display auth token,
+     // raw upstream response, HMAC signature, or request data.
+     const allowed=new Set([
+       'OWNER_STAGING_ORIGIN_REQUIRED','JSON_REQUIRED','VERIFIED_OWNER_REQUIRED',
+       'AWS_CONTROL_CHANNEL_NOT_DEPLOYED','AWS_OWNER_CONTROL_NOT_CONFIRMED',
+       'EMPTY_JSON_REQUIRED','OWNER_SESSION_REQUIRED','AUTH_REQUIRED'
+     ]);
+     const code=allowed.has(raw)?raw:/^Gateway HTTP (400|401|403|404|415|423|500|502|503|504)$/.test(raw)?raw:'NETWORK_OR_AUTH_ERROR';
+     $('ownerLiveUnlockStatus').textContent='AWS control review request was not confirmed ['+code+']. No unlock or order occurred.';
    }finally{unlockRequest.disabled=false;}
   });
  }
