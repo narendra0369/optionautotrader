@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import sqlite3
 from datetime import datetime, timezone
 
 class PermitDenied(PermissionError):pass
@@ -71,6 +72,47 @@ def verify_dispatch_permit(*,operation,owner,payload,permit,now=None):
     calculated=hmac.new(key,message,hashlib.sha256).hexdigest()
     if not hmac.compare_digest(calculated,permit["mac"]):
         raise PermitDenied("PERMIT_SIGNATURE_INVALID")
-    # A MAC alone does NOT ensure single use. Do not return an executable
-    # grant until production nonce/journal transactional consumption is wired.
-    raise PermitDenied("DURABLE_NONCE_CONSUMPTION_NOT_CERTIFIED")
+    # Consume the permit BEFORE any broker network call. If the process
+    # crashes after this commit, the permit cannot be retried blindly.
+    ledger_path=os.getenv("OPTIONX_V52_PERMIT_LEDGER_FILE","")
+    ledger=Path(ledger_path)
+    if not ledger_path or not ledger.is_absolute() or ledger.is_symlink():
+        raise PermitDenied("PRIVATE_NONCE_LEDGER_NOT_CONFIGURED")
+    parent=ledger.parent
+    if not parent.is_dir() or parent.is_symlink():
+        raise PermitDenied("PRIVATE_NONCE_DIRECTORY_MISSING")
+    info=parent.stat()
+    if info.st_uid!=os.geteuid() or info.st_mode&0o077:
+        raise PermitDenied("PRIVATE_NONCE_DIRECTORY_PERMISSIONS")
+    if ledger.exists():
+        info=ledger.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid!=os.geteuid() or info.st_mode&0o077:
+            raise PermitDenied("PRIVATE_NONCE_FILE_PERMISSIONS")
+    prev=os.umask(0o077)
+    try:
+        db=sqlite3.connect(str(ledger),timeout=10,isolation_level=None)
+    except sqlite3.Error:
+        raise PermitDenied("NONCE_LEDGER_UNAVAILABLE") from None
+    finally:
+        os.umask(prev)
+    try:
+        db.execute("PRAGMA journal_mode=DELETE")
+        db.execute("PRAGMA synchronous=FULL")
+        db.execute("CREATE TABLE IF NOT EXISTS consumed_permits(nonce TEXT PRIMARY KEY,order_digest TEXT NOT NULL,consumed_utc TEXT NOT NULL)")
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            db.execute("INSERT INTO consumed_permits VALUES(?,?,?)",
+                       (permit["nonce"],order_digest,current.isoformat()))
+            db.commit()
+        except sqlite3.IntegrityError:
+            db.rollback()
+            raise PermitDenied("PERMIT_ALREADY_CONSUMED") from None
+        except Exception:
+            db.rollback()
+            raise
+    except sqlite3.Error:
+        raise PermitDenied("PERMIT_NONCE_PERSISTENCE_FAILED") from None
+    finally:
+        db.close()
+    return {"verified":True,"singleUseConsumed":True,
+            "orderDigest":order_digest}
