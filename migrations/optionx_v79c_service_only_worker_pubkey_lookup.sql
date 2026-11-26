@@ -4,7 +4,7 @@ BEGIN;
 CREATE OR REPLACE FUNCTION public.optionx_v79_worker_verification_key(
  p_owner uuid, p_worker uuid
 ) RETURNS TABLE(public_key_pem text, key_fingerprint_sha256 text)
-LANGUAGE sql STABLE SECURITY DEFINER
+LANGUAGE sql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,optionx_private
 AS $fn$
  SELECT k.public_key_pem,k.key_fingerprint_sha256
