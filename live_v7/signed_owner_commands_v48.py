@@ -14,7 +14,7 @@ import re
 import sqlite3
 from uuid import UUID
 
-ACTIONS=frozenset(("EMERGENCY_STOP","REQUEST_UNLOCK_REVIEW"))
+ACTIONS=frozenset(("EMERGENCY_STOP","REQUEST_UNLOCK_REVIEW","REQUEST_ACTIVATE_LIVE"))
 MAX_SKEW_SECONDS=30
 class CommandRejected(ValueError): pass
 
@@ -64,6 +64,8 @@ def apply_signed_command(db, *, data, signature, key:bytes,
     requests are never an authorization to dispatch an order.
     """
     payload=_canonical(data)
+    if data["action"]=="REQUEST_ACTIVATE_LIVE":
+        raise CommandRejected("ACTIVATION_REQUIRES_V51_CERTIFIED_HANDLER")
     owner=_uuid(expected_owner)
     if owner!=data["owner"]:
         raise CommandRejected("COMMAND_OWNER_MISMATCH")
