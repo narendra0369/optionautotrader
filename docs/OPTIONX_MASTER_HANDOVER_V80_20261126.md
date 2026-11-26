@@ -42,17 +42,20 @@ Do not rebuild/reinstall from scratch. Look up:
    - `optionx-v7-offline-test-staging`, branch `optionx-live-prep-v7-20261124`, auto-deploy OFF.
    - `optionx-market-feed` and `optionx-200k-strategy-lab` remain on `optionx-200k-strategy-lab-20261123`, auto-deploy ON; may differ from V79/V80 draft branch. DO NOT treat all services as having V80 source.
 
+## V80 REAL AWS↔SUPABASE SIGNED ROUNDTRIP — COMPLETED / DO NOT REPEAT
+
+**2026-11-26:** User ran self-contained Ubuntu script on original host and showed:
+- `PASS: REGISTERED_PUBLIC_KEY_MATCHES`.
+- First signed canonical V80 request: **HTTP 200**, `V80_PENDING_KEY_PROOF_VALID`, `PASS: REAL_SUPABASE_SIGNATURE_VERIFIED`.
+- Identical signed nonce replay: **HTTP 409**, `REPLAYED_OR_UNREGISTERED_NONCE`, `PASS: REPLAY_PROTECTION`.
+- `V80_REAL_AWS_SUPABASE_SIGNED_PROOF_COMPLETE`, `WORKER_PENDING | LIVE_ORDERS_OFF`, `PRIVATE_KEY_NOT_EXPORTED`.
+- Independently read Supabase DB after user proof: **exactly 1 V80 pending-worker proof recorded** at `2026-11-26 16:54:03.083236+00`. Public key remains **1 PENDING, 0 VERIFIED**. Worker DB role still **NOLOGIN**. Order intents **0** and risk reservations **0**.
+
+This verifies **actual key possession against registered public key and one-time nonce replay rejection**, not independent process attestation, privilege to trade or release of Owner STOP.
+
 ## CURRENT TASK — DO THIS NEXT, NO NEED TO ASK USER TO EXPLAIN HISTORY
-**Complete real V80 AWS -> Supabase pending-key signed proof.** Script stored in same GitHub branch:
-`scripts/optionx_v80_real_aws_supabase_signed_proof.py`.
-Expected environment: original AWS Ubuntu, `sudo python3`, private/public identity files in `/etc/optionx-v79/`, owner-bound UUID read privately from `/etc/optionx-v52/receiver.env` (do not echo it).
-The script signs:
-`OPTIONX_V80_PENDING_PROOF\\n{owner_uuid}\\n{worker_uuid}\\n{nonce_uuid}\\n{issued_at_ISO8601_millis_Z}`
-using Ed25519 private key kept on AWS. It POSTs JSON to:
-`https://yghijfzwsvmzaffllszl.supabase.co/functions/v1/optionx-v80-pending-worker-proof`.
-Expected first request HTTP 200 and `V80_PENDING_KEY_PROOF_VALID`, repeat identical signed JSON HTTP 409 and `REPLAYED_OR_UNREGISTERED_NONCE`.
-Server records nonce ONLY on successful signature. Absolutely NO order, risk approval or worker promotion.
-Since repository is PRIVATE, anonymous `curl raw.githubusercontent.com` for the script will NOT work. Give user a complete self-contained pasteable Ubuntu heredoc, or use an approved authenticated GitHub checkout. Do not ask user to paste private key/TOTP/token.
+
+**Proceed to V81 independent worker attestation/scoped authorization design and real safe validation.** Do NOT request a new private key and do NOT repeat V80 positive proof, unless diagnosing a concrete regression. See blockers below. The first priority is independently attesting the source and custody of the V79 key and ensuring the app can only request narrow identity proofs, not using a generic root-owned signing script. Validate server-side approval governance without granting live entry/BUY/SELL/CANCEL. Maintain all critical risk controls. If preparing a V81 script, keep it non-invasive and user-run on the original Ubuntu host; do not claim execution until output arrives.
 
 ## BLOCKERS AFTER V80 SIGNED PROOF
 1. Workload-specific identity proof beyond possession of key: machine role alone does not attest to `optionx-executor`; require independent process/host trust, key custody/rotation, approval, short-lived credentials.
@@ -69,9 +72,9 @@ Since repository is PRIVATE, anonymous `curl raw.githubusercontent.com` for the 
 - `GitHub file created` != `merged to main` != `Render deployed` != `AWS installed` != `production certified`.
 - Supabase migrations above ARE actually applied; V80 pending endpoint IS ACTIVE.
 - AWS V79 signing proof is based on user-pasted terminal output, not our own SSH.
-- V80 signed AWS -> Supabase roundtrip is NOT YET COMPLETED. Do not claim PASS before corresponding HTTP 200+409 and DB nonce evidence.
+- V80 signed AWS -> Supabase roundtrip IS COMPLETED: the user showed HTTP 200 and replay HTTP 409; independently verified 1 recorded V80 proof in Supabase. It does not grant trading permission.
 - Edge function "verify_jwt=false" does NOT grant auth; request authentication is Ed25519 signature and pending registry key lookup.
 - Everything is owner only; never modify ZELQORIS marketplace or unrelated schemas.
 
 ## HANDOFF TO THE NEXT CHAT, COPY-PASTE STARTER
-`Continue OPTIONX from docs/OPTIONX_MASTER_HANDOVER_V80_20261126.md in private GitHub repo narendra0369/optionautotrader on branch optionx-v80-signed-pending-proof-and-master-handover-20261126. First finish V80 real AWS→Supabase Ed25519 pending worker challenge-response (HTTP 200 then replay HTTP 409) using the stored AWS key; never request secrets, never permit live orders, preserve Owner STOP and manual position. Then plan independent worker attestation, scoped DB access and guarded STOP redesign. Check current Supabase actual state before taking actions.`
+`Continue OPTIONX from docs/OPTIONX_MASTER_HANDOVER_V80_20261126.md in private GitHub repo narendra0369/optionautotrader on branch optionx-v80-signed-pending-proof-and-master-handover-20261126. V80 AWS→Supabase Ed25519 signed proof completed (HTTP 200, replay HTTP 409; 1 DB proof recorded). Continue at V81 independent worker attestation and limited authorization WITHOUT granting trade permissions, preserving STOP/manual position. Never request secrets; verify current Supabase state first. Check current Supabase actual state before taking actions.`
