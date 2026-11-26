@@ -292,9 +292,20 @@ async function refreshOwnerMfa(user){
  }
 }
 function ownerQrSrc(value){
- if(typeof value!=='string'||value.length>300000)return null;
+ if(typeof value!=='string'||value.length>500000)return null;
  const raw=value.trim().replace(/^\uFEFF/,'');
- if(/^data:image\/(?:svg\+xml|png);/i.test(raw))return raw;
+ // Supabase sends "data:image/svg+xml;utf-8,<svg ...>" in some versions.
+ // Unescaped SVG (especially #, quotes and spaces) can fail in <img>.
+ // Re-encode only the SVG payload; do not send it to an external service.
+ const match=/^data:image\/svg\+xml([^,]*),(.*)$/is.exec(raw);
+ if(match){
+   if(/;base64/i.test(match[1]))return raw;
+   let svg=match[2];
+   try{svg=decodeURIComponent(svg);}catch(_){/* original may be raw XML */}
+   if(!/<svg(?:\s|>)/i.test(svg)||!svg.includes('</svg>'))return null;
+   return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+ }
+ if(/^data:image\/png;base64,/i.test(raw))return raw;
  if((raw.startsWith('<svg')||raw.startsWith('<?xml')) && /<svg(?:\s|>)/i.test(raw) && raw.includes('</svg>'))
    return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(raw);
  return null;
@@ -333,7 +344,8 @@ function initOwnerMfa(){
      setupKey.value=secret;
      manual.hidden=!secret;
      qrElement.hidden=!image;
-     qrElement.onerror=()=>{qrElement.hidden=true;manual.hidden=!secret;};
+     qrElement.onload=()=>{qrElement.hidden=false;mfaStatus('QR code ready. Scan using Google Authenticator, then verify your 6-digit code.');};
+     qrElement.onerror=()=>{qrElement.hidden=true;manual.hidden=!secret;mfaStatus('QR could not be rendered. Use the private manual setup key below.');};
      if(image)qrElement.src=image;else qrElement.removeAttribute('src');
      byId('ownerMfaSetup').hidden=false;
      byId('ownerMfaVerifyForm').hidden=false;
