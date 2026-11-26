@@ -372,6 +372,38 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
+        if path == '/api/v51/owner/activate':
+            # Real button action: authenticated owner request is signed by
+            # Render and evaluated on AWS. Only AWS can arm after verified
+            # prerequisites; frontend supplies NO evidence or lock override.
+            if (self.headers.get('Origin') != V7_STAGING_ORIGIN
+                or os.getenv('OPTIONX_V7_STAGING_CORS','0') != '1'):
+                return self._json(403,{'error':'OWNER_STAGING_ORIGIN_REQUIRED',
+                                       'liveOrdersEnabled':False})
+            if self.headers.get('Content-Type','').split(';')[0].strip().lower()!='application/json':
+                return self._json(415,{'error':'JSON_REQUIRED','liveOrdersEnabled':False})
+            user=user_from_token(self.headers.get('Authorization'))
+            if not user or angel_status(user).get('ownerMatch') is not True:
+                return self._json(403,{'error':'VERIFIED_OWNER_REQUIRED',
+                                       'liveOrdersEnabled':False})
+            if os.getenv('OPTIONX_V48_CONTROL_RELAY_ENABLED','0')!='1':
+                return self._json(423,{'error':'AWS_CONTROL_CHANNEL_NOT_DEPLOYED',
+                                       'liveOrdersEnabled':False})
+            try:
+                n=int(self.headers.get('Content-Length','0'))
+                if n!=2 or json.loads(self.rfile.read(n))!={}:
+                    return self._json(400,{'error':'EMPTY_JSON_REQUIRED',
+                                           'liveOrdersEnabled':False})
+                reply=forward_owner_control(
+                    verified_owner_id=user,
+                    expected_owner_id=os.getenv('OPTIONX_OWNER_USER_ID',''),
+                    action='REQUEST_ACTIVATE_LIVE',
+                    signing_key=os.getenv('OPTIONX_V48_CONTROL_HMAC_KEY','').encode('utf-8'),
+                    aws_endpoint=os.getenv('OPTIONX_V48_AWS_HTTPS_URL',''))
+                return self._json(200,reply)
+            except (RelayBlocked,ValueError,TypeError):
+                return self._json(503,{'error':'AWS_ACTIVATION_NOT_CONFIRMED',
+                                       'liveOrdersEnabled':False})
         if path == '/api/v48/owner/request-unlock-review':
             # Owner-bound, CSRF-guarded server-to-server signed command.
             # Never accepts arbitrary order params or browser supplied HMAC.

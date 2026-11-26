@@ -22,7 +22,7 @@ def forward_owner_control(*, verified_owner_id, expected_owner_id,
                           opener=None):
     if not isinstance(verified_owner_id,str) or verified_owner_id!=expected_owner_id:
         raise RelayBlocked("VERIFIED_OWNER_REQUIRED")
-    if action not in ("EMERGENCY_STOP","REQUEST_UNLOCK_REVIEW"):
+    if action not in ("EMERGENCY_STOP","REQUEST_UNLOCK_REVIEW","REQUEST_ACTIVATE_LIVE"):
         raise RelayBlocked("ACTION_NOT_ALLOWED")
     if not isinstance(aws_endpoint,str):
         raise RelayBlocked("AWS_ENDPOINT_NOT_CONFIGURED")
@@ -60,6 +60,7 @@ def forward_owner_control(*, verified_owner_id, expected_owner_id,
         if result.get("liveOrdersEnabled") is not False:
             raise RelayBlocked("AWS_CONTROL_RESPONSE_INCONSISTENT")
         return {"awsControlAcknowledged":True,"mode":result.get("mode"),
+                "activationBlocked":result.get("mode")=="BLOCKED",
                 "liveOrdersEnabled":False,"canSubmitOrder":False}
     except (OSError,TimeoutError,ValueError,UnicodeDecodeError) as exc:
         if isinstance(exc,RelayBlocked): raise

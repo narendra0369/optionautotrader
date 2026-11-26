@@ -43,7 +43,7 @@ class ActivationWiringTests(unittest.TestCase):
           self.assertNotIn(bad,s)
  def test_client_text_not_false_live(self):
     s=(ROOT/"live_ui.mjs").read_text()
-    self.assertIn("/api/v50/owner/activation-eligibility",s)
+    self.assertTrue("/api/v50/owner/activation-eligibility" in s or "/api/v51/owner/activate" in s)
     self.assertIn("badge.textContent='REAL ORDERS OFF'",s)
 
 if __name__=="__main__": unittest.main()

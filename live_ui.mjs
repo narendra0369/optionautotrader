@@ -77,9 +77,14 @@ export function mountLive({client, onPage}){
     report.textContent='Checking live eligibility against authenticated server requirements…';
     items.replaceChildren();
     try{
-      const result=await request('/api/v50/owner/activation-eligibility');
+      const result=await request('/api/v51/owner/activate',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+      });
+      // An ACK of the command is not proof that Angel orders are enabled.
       badge.textContent='REAL ORDERS OFF';
-      report.textContent=result.message||'Activation unavailable until AWS execution is independently certified.';
+      report.textContent=result.activationBlocked
+        ?'AWS received the unlock request but production approval is incomplete. Real orders remain OFF.'
+        :'AWS received the request. Check the independent execution worker status; this screen has NOT verified real order permission.';
       for(const item of result.blockers||[]){
         const line=document.createElement('div');
         line.className='live-check';

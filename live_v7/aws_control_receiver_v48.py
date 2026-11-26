@@ -14,16 +14,19 @@ from pathlib import Path
 from uuid import UUID
 from .owner_control_store_v47 import open_control_store
 from .signed_owner_commands_v48 import apply_signed_command,CommandRejected
+from .owner_activation_v50 import create_store
+from .owner_arm_command_v51 import attempt_activation
 
 class PrivateControlServer(ThreadingHTTPServer):
     allow_reuse_address=False
     daemon_threads=True
-    def __init__(self,bind,handler,*,db_path,owner_id,key):
+    def __init__(self,bind,handler,*,db_path,activation_db_path,owner_id,key):
         if bind[0] not in ("127.0.0.1","::1"):
             raise ValueError("LOOPBACK_BIND_ONLY")
         if type(key) is not bytes or len(key)<32:
             raise ValueError("STRONG_SERVER_KEY_REQUIRED")
         self.db_path=str(db_path)
+        self.activation_db_path=str(activation_db_path)
         self.owner_id=str(UUID(owner_id))
         self.key=key
         super().__init__(bind,handler)
@@ -55,14 +58,24 @@ class PrivateControlHandler(BaseHTTPRequestHandler):
             body=json.loads(self.rfile.read(size))
             # Always open a separate connection; BEGIN IMMEDIATE fences
             # concurrent requests. Never persist raw bearer tokens.
-            db=open_control_store(self.server.db_path)
-            try:
-                result=apply_signed_command(
-                    db,data=body,signature=signature,
-                    key=self.server.key,expected_owner=self.server.owner_id,
-                    now=datetime.now(timezone.utc))
-            finally:
-                db.close()
+            if isinstance(body,dict) and body.get("action")=="REQUEST_ACTIVATE_LIVE":
+                db=create_store(self.server.activation_db_path)
+                try:
+                    result=attempt_activation(
+                        db,data=body,signature=signature,
+                        key=self.server.key,expected_owner=self.server.owner_id,
+                        now=datetime.now(timezone.utc))
+                finally:
+                    db.close()
+            else:
+                db=open_control_store(self.server.db_path)
+                try:
+                    result=apply_signed_command(
+                        db,data=body,signature=signature,
+                        key=self.server.key,expected_owner=self.server.owner_id,
+                        now=datetime.now(timezone.utc))
+                finally:
+                    db.close()
             return self._reply(200,result)
         except (CommandRejected,ValueError,TypeError):
             return self._reply(403,{"error":"OWNER_COMMAND_REJECTED",
@@ -75,12 +88,14 @@ class PrivateControlHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         return self._reply(405,{"error":"METHOD_NOT_ALLOWED"})
 
-def serve_local(*,db_path,owner_id,key,port=8766):
+def serve_local(*,db_path,activation_db_path,owner_id,key,port=8766):
     if os.geteuid()==0:
         raise ValueError("NON_ROOT_PROCESS_REQUIRED")
     # Caller must prepare 0700 private directory as restricted OS user,
     # load secret key from root-provisioned secret manager / service config.
     db=open_control_store(db_path);db.close()
+    activation_db=create_store(activation_db_path);activation_db.close()
     app=PrivateControlServer(("127.0.0.1",port),PrivateControlHandler,
-                             db_path=db_path,owner_id=owner_id,key=key)
+                             db_path=db_path,activation_db_path=activation_db_path,
+                             owner_id=owner_id,key=key)
     app.serve_forever()
