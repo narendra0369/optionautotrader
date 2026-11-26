@@ -37,6 +37,24 @@ fi
 chown root:root "$public"
 chmod 0644 "$public"
 openssl pkey -pubin -in "$public" -text -noout >/dev/null 2>&1 || die "Invalid public key"
+worker_id_file="$dir/worker_id"
+if [[ -L "$worker_id_file" ]]; then die "Worker identity must not be symlink"; fi
+if [[ ! -e "$worker_id_file" ]]; then
+ tmpid="$(mktemp "$dir/.worker-id.XXXXXXXX")"
+ trap 'rm -f "$tmpid"' EXIT
+ python3 -c 'import uuid;print(uuid.uuid4())' >"$tmpid"
+ install -o root -g root -m 0644 "$tmpid" "$worker_id_file"
+ rm -f "$tmpid"
+ trap - EXIT
+fi
+python3 - "$worker_id_file" <<'PY'
+from uuid import UUID
+import sys
+raw=open(sys.argv[1],encoding="ascii").read().strip()
+assert str(UUID(raw))==raw, "Invalid stable worker_id"
+PY
+echo "PUBLIC_WORKER_ID: $(cat "$worker_id_file")"
+
 # The installer is not permitted to overwrite an unknown probe script.
 if [[ -e "$probe" ]] && ! grep -Fq 'Proof of isolated worker-owned systemd credential' "$probe"; then
  die "Existing unrelated probe file; refusing to overwrite"
