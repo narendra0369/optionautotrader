@@ -30,7 +30,12 @@ install -d -o root -g root -m 0755 /opt/optionx-v81
 install -d -o root -g root -m 0700 /etc/optionx-v81
 owner_uuid="$(sed -n 's/^OPTIONX_OWNER_USER_ID=//p' "$owner_env" | head -1 | tr -d '"\047')"
 [[ "$owner_uuid" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || die "Owner UUID binding invalid"
-printf '%s\n' "$owner_uuid" | install /dev/stdin /etc/optionx-v81/owner_uuid -o root -g root -m 0600
+temp_owner="$(mktemp /etc/optionx-v81/.owner.XXXXXXXX)"
+trap 'rm -f "$temp_owner"' EXIT
+printf '%s\n' "$owner_uuid" > "$temp_owner"
+install -o root -g root -m 0600 "$temp_owner" /etc/optionx-v81/owner_uuid
+rm -f "$temp_owner"
+trap - EXIT
 # Only install expected source. Never copy original private key or expose it.
 install -o root -g root -m 0644 "$source_py" /opt/optionx-v81/worker_proof.py
 python3 -B -m py_compile /opt/optionx-v81/worker_proof.py
