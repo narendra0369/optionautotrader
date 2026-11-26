@@ -47,6 +47,13 @@
  <p class="hint">Before live enablement: broker OAuth or secure credential exchange, contract-level prices &amp; lot sizes, paper-to-live validation, broker order/position reconciliation, exchange hours, RMS and regulatory checks, daily stop, kill switch and explicit separate approval. Current site deliberately cannot send real orders.</p></div>
  </section>
 <section id="page-live" class="page">
+ <div class="panel pad" id="ownerLiveUnlockPanel" aria-label="Owner live execution unlock status">
+  <div class="section-bar"><div><h3>Owner Live Unlock</h3><p>Owner-verified execution gate · server-side readiness · no browser-side bypass</p></div><span class="paper-badge" id="ownerLiveUnlockBadge">REAL ORDERS OFF</span></div>
+  <p class="hint">This control checks whether production execution is independently certified. It cannot turn real trading on while the broker transport source lock, STOP guard or required safety proofs remain unresolved. AWS verified read-only status is not the same as this website's Render session.</p>
+  <div class="actions"><button type="button" class="primary" id="ownerLiveUnlockCheck">Check Live Unlock Eligibility</button><button type="button" class="outline" id="ownerLiveUnlockStop" disabled title="Available only when a verified production stop route is installed">Emergency Real STOP (not wired)</button></div>
+  <p class="hint" id="ownerLiveUnlockStatus" role="status" aria-live="polite">Sign in as the bound owner and check the server execution gate. No BUY/SELL/CANCEL can be sent here.</p>
+  <div class="live-check-list" id="ownerLiveUnlockChecks" aria-live="polite"></div>
+ </div>
  <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
  <div class="panel pad" id="autoAtmPanel">

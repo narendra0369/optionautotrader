@@ -19,6 +19,7 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7.owner_live_unlock_v46 import live_unlock_status as v46_live_unlock_status
 from live_v7.egress_diagnostic import check_egress
 from live_v7.angel_greeks import angel_selected_contract_greeks
 from live_v7.angel_auto_atm import angel_auto_atm_readonly
@@ -182,6 +183,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(423, {'error': 'EGRESS_DIAGNOSTIC_DISABLED', 'canSubmitOrder': False})
             return self._json(200, check_egress(
                 registered_ipv4=os.getenv('OPTIONX_ANGEL_REGISTERED_IPV4', '').strip()))
+        if path.path == '/api/v46/owner/live-unlock-status':
+            # Trusted Supabase session AND server-side owner binding required.
+            # This endpoint is GET/READ-ONLY, with no broker order or gate write.
+            user = user_from_token(self.headers.get('Authorization'))
+            if not user:
+                return self._json(401, {'error':'AUTHENTICATED_OWNER_REQUIRED',
+                                        'liveOrdersEnabled':False})
+            broker_state = angel_status(user)
+            if broker_state.get('ownerMatch') is not True:
+                return self._json(403, {'error':'OWNER_ONLY',
+                                        'liveOrdersEnabled':False})
+            return self._json(200, v46_live_unlock_status(
+                owner_match=True,
+                verified_session=broker_state.get('connected') is True))
         if path.path == '/api/v7/readiness':
             user = user_from_token(self.headers.get('Authorization'))
             if not user:
