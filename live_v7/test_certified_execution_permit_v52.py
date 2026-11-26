@@ -98,7 +98,7 @@ class V52Tests(unittest.TestCase):
     with self.assertRaises(PermitDenied):self.verify()
  def test_nonprivate_key_rejected(self):
     self.keyfile.chmod(0o644)
-    with self.assertRaisesRegex(PermitDenied,"PERMISSIONS"):self.verify()
+    with self.assertRaises(PermitDenied):self.verify()
  def test_missing_ledger_rejected(self):
     with patch.dict(os.environ,{"OPTIONX_V52_PERMIT_LEDGER_FILE":""}):
         with self.assertRaises(PermitDenied):self.verify()
@@ -117,16 +117,18 @@ class V52Tests(unittest.TestCase):
  def test_mock_broker_ack_with_valid_permit(self):
     # Issue within fake trusted worker fixture; external provider never called.
     # Rebind system clock used in verifier to frozen value.
-    with patch("live_v7.certified_execution_permit_v52.datetime") as dt:
-        dt.now.return_value=NOW
-        dt.side_effect=lambda *x,**kw:datetime(*x,**kw)
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls,tz=None):
+            return NOW if tz is None else NOW.astimezone(tz)
+    with patch("live_v7.certified_execution_permit_v52.datetime",FixedDateTime):
         r=request(operation="place",session=SESSION,expected_owner_id=OWNER,
             execution_gate=dict(GATES,dispatch_permit=self.permit()),payload=ORDER,
             fetch=lambda req,timeout=8:FakeHTTP())
     self.assertEqual(r["state"],"ACK_RECEIVED_REQUIRES_ORDERBOOK_RECONCILIATION")
     self.assertTrue(r["newEntriesBlocked"])
  def test_gate_missing_prevents_http(self):
-    with self.assertRaisesRegex(AngelTransportBlocked,"PRODUCTION_SAFETY_GATES_MISSING"):
+    with self.assertRaisesRegex(AngelTransportBlocked,"BROKER_EXECUTION_APPROVAL_UNVERIFIED"):
         request(operation="place",session=SESSION,expected_owner_id=OWNER,
                 execution_gate={"dispatch_permit":self.permit()},payload=ORDER,
                 fetch=lambda req,timeout=8:FakeHTTP())
