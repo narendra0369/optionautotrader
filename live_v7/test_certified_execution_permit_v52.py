@@ -117,11 +117,10 @@ class V52Tests(unittest.TestCase):
  def test_mock_broker_ack_with_valid_permit(self):
     # Issue within fake trusted worker fixture; external provider never called.
     # Rebind system clock used in verifier to frozen value.
-    class FixedDateTime(datetime):
-        @classmethod
-        def now(cls,tz=None):
-            return NOW if tz is None else NOW.astimezone(tz)
-    with patch("live_v7.certified_execution_permit_v52.datetime",FixedDateTime):
+    # The actual cryptographic verifier runs against a fixed test clock;
+    # only its time input is supplied by the test, never its verdict.
+    with patch("live_v7.angel_execution_transport.verify_dispatch_permit",
+        side_effect=lambda **kw: verify_dispatch_permit(now=NOW,**kw)):
         r=request(operation="place",session=SESSION,expected_owner_id=OWNER,
             execution_gate=dict(GATES,dispatch_permit=self.permit()),payload=ORDER,
             fetch=lambda req,timeout=8:FakeHTTP())
