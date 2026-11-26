@@ -8,7 +8,7 @@ Owner confirms V48 AWS offline 33/33 PASS and asks to complete production tradin
   - V43 SQLite durable intent reservation + uncertain-send seal committed BEFORE synthetic broker invocation.
   - V44 broker order/tradebook consistency checker: exact order ID, token, side, producttype, partial fills, cancelled/rejected/complete and unknown states.
   - explicit `mock_only=True` gateway contract; never imports or calls Angel order transport.
-- `live_v7/test_lifecycle_worker_v49.py`: 20 offline tests including restart, duplicate, complete, partial, rejected, cancelled, unknown, simulated timeout, owner STOP, absence of live source unlock.
+- `live_v7/test_lifecycle_worker_v49.py`: 22 offline tests including restart, duplicate, complete, partial, rejected, cancelled, unknown, simulated timeout, owner STOP, absence of live source unlock.
 - All outcomes `canSubmitOrder=False`, `liveOrdersEnabled=False`, `brokerOrdersSent=0` (meaning **real** sends; synthetic gateway invocation count is tracked only by the mock). No automatic re-send on restored durable intent.
 
 ## Remaining before ANY real-money order
@@ -38,8 +38,12 @@ else
 fi
 cd "$DIR"
 python3 -B -m unittest live_v7.test_lifecycle_worker_v49 -q
-echo "=== V49_AWS_20_TESTS_COMPLETE ==="
+echo "=== V49_AWS_22_TESTS_COMPLETE ==="
 BASH
 ```
 
 No login, credentials, AWS/Render restart, production database migration or broker submit. Tests use temporary files and deterministic simulated book rows.
+
+
+## Fix after first AWS run
+First AWS V49 run reported 14 ERROR / 20 tests with `IntentBlocked: EXACT_ORDER_FIELDS_REQUIRED`: V49 preview fixture used `contract/orderType/limit` fields while V43 ledger accepts an exact nine-field `symbol/type/price` draft. Updated V49 worker now explicitly converts only its fixed mock fixture to V43's exact schema and still requires V43 to verify immutable symbol/token/quantity/price/side. Added two regression tests for unknown preview fields and client live-flag tampering. New expected suite: 22 tests. No production order transport changed.
