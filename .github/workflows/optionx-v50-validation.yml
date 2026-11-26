@@ -1,0 +1,38 @@
+name: OptionX V50 owner activation safety
+
+on:
+  pull_request:
+    paths:
+      - "live_v7/**"
+      - "market_api.py"
+      - "live_ui.mjs"
+      - "index.html"
+      - ".github/workflows/optionx-v50-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python compile (offline, no secrets)
+        run: |
+          python -m py_compile live_v7/owner_activation_v50.py live_v7/owner_activation_coordinator_v50.py live_v7/lifecycle_worker_v49.py
+      - name: Run full V49 and V50 offline suites (51 tests)
+        run: |
+          python -B -m unittest live_v7.test_lifecycle_worker_v49 live_v7.test_owner_activation_v50 live_v7.test_activation_wiring_v50 -q
+      - name: Verify production source lock remains
+        run: |
+          python - <<'PY'
+          from live_v7.angel_execution_transport import capabilities
+          assert capabilities()["sourceLockEnabled"] is True
+          assert capabilities()["realOrdersEnabled"] is False
+          print("REAL_ORDER_SOURCE_LOCK_PRESENT")
+          PY
