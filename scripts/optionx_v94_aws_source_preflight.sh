@@ -17,8 +17,8 @@ for s in optionx-market-api optionx-owner-receiver optionx-v78-executor-staging;
 done
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-git -c safe.directory="$REPO" -C "$REPO" fetch --no-tags origin "$BRANCH"
-git -c safe.directory="$REPO" -C "$REPO" archive FETCH_HEAD | tar -x -C "$tmp"
+sudo git -c safe.directory="$REPO" -C "$REPO" fetch --no-tags origin "$BRANCH"
+sudo git -c safe.directory="$REPO" -C "$REPO" archive FETCH_HEAD | tar -x -C "$tmp"
 cd "$tmp"
 python3 -m unittest discover -s tests -p 'test_optionx_v93_guarded_sl_worker.py' -v
 python3 -m unittest discover -s tests -p 'test_optionx_v94_position_product.py' -v
