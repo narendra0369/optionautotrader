@@ -98,6 +98,47 @@ export function mountLive({client, onPage}){
     }finally{activationAttempt.disabled=false;}
   });
  }
+ // V92: owner-visible order draft is ALWAYS a non-executing gate check.
+ // Even a green status never gives a browser direct Angel trading privileges.
+ const slGateCheck=$('v92SlGateCheck');
+ if(slGateCheck){
+  slGateCheck.addEventListener('click',async()=>{
+   const display=$('v92SlGateStatus'),badge=$('v92ManualSlBadge');
+   const contract=$('v92SlContract').value.trim();
+   const qty=Number($('v92SlQty').value);
+   const trigger=Number($('v92SlTrigger').value);
+   const limit=Number($('v92SlLimit').value);
+   badge.textContent='NO ORDER ROUTE · CHECKING';
+   const tickShape=n=>Number.isFinite(n)&&n>0&&Math.abs(n*20-Math.round(n*20))<1e-8;
+   if(contract!=='NIFTY29DEC2629000CE'||!Number.isSafeInteger(qty)||qty<=0||qty>10000||
+      !tickShape(trigger)||!tickShape(limit)||!(limit<=trigger)){
+    badge.textContent='INVALID DRAFT · REAL OFF';
+    display.textContent='Local SL draft invalid. NFO contract, positive integer quantity and 0.05-aligned SELL trigger/limit required. No order sent.';
+    return;
+   }
+   if(!user){
+    badge.textContent='OWNER LOGIN REQUIRED · REAL OFF';
+    display.textContent='Sign in as the bound OPTIONX owner. No order sent.';
+    return;
+   }
+   slGateCheck.disabled=true;
+   display.textContent='Checking actual backend live gate. Browser draft is not a fresh broker snapshot…';
+   try{
+    const status=await request('/api/v46/owner/live-unlock-status');
+    const blockers=Array.isArray(status.blockers)?status.blockers.map(x=>String(x).slice(0,80)):[];
+    // No browser-side placeOrder exists, even if the gate later reports eligible.
+    badge.textContent='ORDER TRANSPORT NOT WIRED';
+    display.textContent='Draft SELL SL-LIMIT '+contract+' qty '+qty+
+      ' trigger ₹'+trigger.toFixed(2)+' limit ₹'+limit.toFixed(2)+
+      '. Server live gate: '+(status.liveOrdersEnabled===true?'reports ON':'BLOCKED')+
+      '. Missing checks: '+(blockers.join(', ')||'verify worker, broker execution and SL-ack path')+
+      '. Fresh broker position/LTP/tick/LPP must be rechecked by AWS. No order submitted.';
+   }catch(_error){
+    badge.textContent='GATE UNAVAILABLE · REAL OFF';
+    display.textContent='Owner gate verification failed or unavailable; cannot approve a broker order. No order submitted.';
+   }finally{slGateCheck.disabled=false;}
+  });
+ }
  const unlockRequest=$('ownerLiveUnlockRequest');
  if(unlockRequest){
   unlockRequest.addEventListener('click',async()=>{

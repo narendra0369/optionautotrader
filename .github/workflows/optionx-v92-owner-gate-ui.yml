@@ -1,0 +1,29 @@
+name: OPTIONX V92-V93 Owner Gate And Worker Safety
+on:
+  push:
+    branches: [optionx-v92-owner-sl-gate-panel-20261127]
+  pull_request:
+    branches: [optionx-v87-angel-reconcile-readonly-20261127]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check browser module syntax
+        run: node --check live_ui.mjs
+      - name: Check owner-gate and protected SL transport
+        run: |
+          python3 -m unittest discover -s tests -p 'test_optionx_v92_owner_website_gate.py' -v
+          python3 -m unittest discover -s tests -p 'test_optionx_v93_guarded_sl_worker.py' -v
+          python3 -m unittest discover -s tests -p 'test_optionx_v91_manual_sl_preflight.py' -v
