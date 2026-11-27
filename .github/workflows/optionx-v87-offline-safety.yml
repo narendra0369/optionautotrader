@@ -1,4 +1,4 @@
-name: OPTIONX V87-V89 Offline Safety Tests
+name: OPTIONX V87-V90 Offline Safety Tests
 on:
   push:
     branches:
@@ -24,3 +24,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_optionx_v87_angel_reconcile.py' -v
           python -m unittest discover -s tests -p 'test_optionx_v88_live_preflight.py' -v
           python -m unittest discover -s tests -p 'test_optionx_v89_angel_exposure_inspect.py' -v
+          python -m unittest discover -s tests -p 'test_optionx_v90_fill_sl_ownership_review.py' -v
