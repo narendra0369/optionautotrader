@@ -1,4 +1,4 @@
-name: OPTIONX V87 Offline Safety Tests
+name: OPTIONX V87-V88 Offline Safety Tests
 on:
   push:
     branches:
@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 jobs:
-  v87-readonly:
+  offline-safety:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Verify read-only no-broker safety model
+      - name: Verify no-broker diagnostics and live readiness gate
         run: |
           python -m unittest discover -s tests -p 'test_optionx_v87_angel_reconcile.py' -v
+          python -m unittest discover -s tests -p 'test_optionx_v88_live_preflight.py' -v
