@@ -54,6 +54,18 @@
   <p class="hint" id="ownerLiveUnlockStatus" role="status" aria-live="polite">Sign in as the bound owner and check the server execution gate. No BUY/SELL/CANCEL can be sent here.</p>
   <div class="live-check-list" id="ownerLiveUnlockChecks" aria-live="polite"></div>
  </div>
+ <div class="panel pad" id="v92ManualSlGate" aria-label="Owner controlled manual position SL-LIMIT gate">
+  <div class="section-bar"><div><h3>Manual Position · SL-LIMIT Owner Control</h3><p>Review a proposed protective SELL stop against the authenticated production live gate. This panel never sends an order.</p></div><span class="paper-badge" id="v92ManualSlBadge">NO ORDER ROUTE · GATE LOCKED</span></div>
+  <div class="disclaimer">Only an independently authorized AWS execution worker can place a real broker order. GitHub deployment, browser input or a successful Angel read-only session do not authorize SELL. Verify a fresh broker position, instrument token, tick size, product type, LPP and existing orders at execution time.</div>
+  <div class="form-grid">
+   <label>Contract<input id="v92SlContract" value="NIFTY29DEC2629000CE" readonly></label>
+   <label>Expected long quantity<input id="v92SlQty" type="number" min="1" step="1" value="65"></label>
+   <label>SELL trigger (₹)<input id="v92SlTrigger" inputmode="decimal" type="number" min="0.05" step="0.05" value="6.50"></label>
+   <label>SELL limit (₹)<input id="v92SlLimit" inputmode="decimal" type="number" min="0.05" step="0.05" value="6.45"></label>
+  </div>
+  <div class="actions"><button type="button" class="primary" id="v92SlGateCheck">Check Owner Live Gate + Draft</button></div>
+  <p id="v92SlGateStatus" class="hint" role="status" aria-live="polite">Draft only. Quote, quantity and SL acknowledgment must be freshly verified by AWS. No real SL order has been submitted.</p>
+ </div>
  <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
  <div class="panel pad" id="autoAtmPanel">
