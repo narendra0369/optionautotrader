@@ -1,0 +1,27 @@
+name: OPTIONX V94 AWS Preflight
+on:
+  push:
+    branches: [optionx-v94-aws-gate-preflight-20261127]
+  pull_request:
+    branches: [optionx-v92-owner-sl-gate-panel-20261127]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check V93/V94 modules
+        run: python3 -m compileall -q live_v7/angel_sl_guarded_worker_v93.py live_v7/angel_sl_transport_v93.py live_v7/angel_position_product_v94.py
+      - name: Run protected worker and broker product matching regressions
+        run: |
+          python3 -m unittest discover -s tests -p 'test_optionx_v93_guarded_sl_worker.py' -v
+          python3 -m unittest discover -s tests -p 'test_optionx_v94_position_product.py' -v
+      - name: Validate AWS preflight shell
+        run: bash -n scripts/optionx_v94_aws_source_preflight.sh
