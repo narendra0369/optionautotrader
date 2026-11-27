@@ -107,8 +107,9 @@ def read_book(user_id: str, resource: str, *, fetch: Callable | None = None,
     except (urllib.error.HTTPError, urllib.error.URLError, OSError, TimeoutError,
             ValueError, TypeError, UnicodeDecodeError, BrokerSnapshotError):
         raise AngelBookReadError("BROKER_BOOK_UNAVAILABLE_OR_INVALID") from None
-    if include_raw_for_server is True and resource in ("orderbook", "tradebook"):
-        # Trusted server-memory only. Never persist, serialize to browser or log.
+    if include_raw_for_server is True and resource in RESOURCES:
+        # Trusted server-memory only, including raw position product type.
+        # Never persist, serialize to browser or log.
         result["rawRows"] = list(_bounded_rows(obj))
     metadata = snapshot_metadata(
         broker="Angel", resource=resource, received_at=moment,
