@@ -20,6 +20,7 @@ SUPABASE_PUBLIC_KEY = 'sb_publishable_4MUEQ2Nj1siLELHYIlEJ6g_7L4QVEsr'
 BROKERS = {
     'Zerodha': {'label': 'Zerodha Kite Connect', 'docs': 'https://kite.trade/docs/connect/v3/', 'markets': ['NIFTY', 'BANKNIFTY']},
     'Angel': {'label': 'Angel One SmartAPI', 'docs': 'https://smartapi.angelone.in/docs', 'markets': ['NIFTY', 'BANKNIFTY']},
+    'Stoxkart': {'label': 'Stoxkart Superr API', 'docs': 'https://developers.stoxkart.com/api-documentation/login', 'markets': ['NIFTY', 'BANKNIFTY']},
     'Dhan': {'label': 'DhanHQ v2', 'docs': 'https://dhanhq.co/docs/v2/authentication/', 'markets': ['NIFTY', 'BANKNIFTY']},
     'Delta': {'label': 'Delta Exchange India API', 'docs': 'https://docs.delta.exchange/', 'markets': ['BTC']},
 }

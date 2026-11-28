@@ -5,6 +5,30 @@ from zoneinfo import ZoneInfo
 from market_api import _valid, _aggregate_4h, get_candles
 
 class FeedTests(unittest.TestCase):
+    def test_mobile_public_cors_least_privilege(self):
+        from market_api import _permitted_origin, V8_MOBILE_PUBLIC_ORIGIN
+        self.assertTrue(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN, '/health'))
+        self.assertTrue(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN, '/api/candles'))
+        for path in ('/api/live/status','/api/v7/angel/positions',
+                     '/api/brokers/angel/connect','/api/live/orders',
+                     '/api/v7/readiness','/api/brokers/angel/status'):
+            self.assertFalse(_permitted_origin(V8_MOBILE_PUBLIC_ORIGIN,path))
+        self.assertFalse(_permitted_origin('https://evil.example','/api/candles'))
+
+    def test_v7_staging_paper_public_endpoints_only(self):
+        from market_api import _permitted_origin, V7_STAGING_ORIGIN
+        with patch.dict('os.environ', {'OPTIONX_V7_STAGING_CORS': '0'}):
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/health'))
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/api/candles'))
+            for private in ('/api/v7/angel/positions',
+                            '/api/v7/angel/orderbook',
+                            '/api/v7/angel/auto-atm',
+                            '/api/live/status'):
+                self.assertFalse(_permitted_origin(V7_STAGING_ORIGIN, private))
+        with patch.dict('os.environ', {'OPTIONX_V7_STAGING_CORS': '1'}):
+            self.assertTrue(_permitted_origin(V7_STAGING_ORIGIN, '/api/v7/angel/positions'))
+        self.assertFalse(_permitted_origin('https://untrusted.example', '/api/candles'))
+
     def test_invalid_ohlc(self):
         self.assertIsNone(_valid(100, 90, 92, 98, 101))
         self.assertIsNone(_valid(100, None, 110, 80, 101))
@@ -41,3 +65,53 @@ from test_dual_brokers import TestDualBrokers
 
 # Render Python build imports these additional offline verification tests.
 from test_angel_gateway import TestAngelGateway
+
+# Owner-authenticated Angel Option Greeks read-only adapter mock tests.
+from live_v7.test_angel_greeks import AngelGreeksReadOnlyTests
+
+# Owner-gated ATM automation remains paper preview only.
+from live_v7.test_angel_auto_atm import AngelAutoATMTests
+
+# Build-gate: validate offline Angel order request contracts; NEVER transmit them.
+from live_v7.test_angel_order_contracts import AngelOrderContractsTests
+
+# No-network owner-only egress audit regression; never broker/order calls.
+from live_v7.test_egress_diagnostic import EgressDiagnosticTests
+
+from live_v7.test_angel_greeks_order_bridge import GreeksOrderBridgeTests
+
+from live_v7.test_angel_execution_transport import AngelExecutionTransportTests
+
+from live_v7.test_angel_aws_release_gate import AwsReleaseGateTests
+
+from live_v7.test_angel_books_readonly import AngelBooksReadOnlyTests
+
+from live_v7.test_aws_shadow_observer import AwsShadowObserverTests
+
+from live_v7.test_aws_angel_owner_reader import AwsAngelOwnerReaderTests
+
+from live_v7.test_lifecycle_rehearsal_v18 import V18LifecycleTests
+
+from live_v7.test_aws_pg_recovery_v19 import V19PostgresRecoveryTests
+
+from live_v7.test_aws_pg_safe_diag_v20 import V20SafeDiagnosticsTests
+
+from live_v7.test_broker_evidence_v21 import V21BrokerEvidenceTests
+
+from live_v7.test_aws_runtime_evidence_v22 import V22RuntimeEvidenceTests
+
+from live_v7.test_execution_coordinator_v23 import V23ExecutionCoordinatorTests
+
+from live_v7.test_prelive_gate_v24 import V24PreliveGateTests
+
+from live_v7.test_pg_atomic_reservation_v25 import V25PostgresStoppedReservationTests
+
+from live_v7.test_manual_sl_preflight_v26 import V26ManualSlPreflightTests
+
+from live_v7.test_manual_sl_quote_v27 import V27ManualSLQuoteTests
+
+from live_v7.test_manual_sl_combined_preflight_v28 import V28CombinedManualSLPreflightTests
+
+from live_v7.test_manual_sl_order_readiness_v29 import V29ManualSlOrderReadinessTests
+
+from live_v7.test_manual_limit_exit_worker_v30 import V30ManualLimitExitTests

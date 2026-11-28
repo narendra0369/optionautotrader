@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d17"><meta name="description" content="OptionX Strategy Lab: NIFTY, BANKNIFTY and Bitcoin OHLC strategy research, 200,000 configurable models and walk-forward backtesting."><title>OptionX · 200K Strategy Lab</title><link rel="stylesheet" href="styles.css"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d17"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/optionx-192.png"><meta name="description" content="OptionX Strategy Lab: NIFTY, BANKNIFTY and Bitcoin OHLC strategy research, 200,000 configurable models and walk-forward backtesting."><title>OptionX · 200K Strategy Lab</title><link rel="stylesheet" href="styles.css"><script>if(new URLSearchParams(location.search).get('chartx')==='angel'||window.parent!==window)document.documentElement.classList.add('cx-embed');</script><style>.cx-embed .app-shell,.cx-embed #authGate{display:none!important}.cx-embed body{min-height:0;padding:12px;background:#0b1220}.cx-login{max-width:460px;margin:auto;padding:12px;color:#dce5f2}.cx-login input:not([type=checkbox]){width:100%;margin:5px 0 12px}.cx-login h2{font-size:19px}.cx-login button{margin:6px 0}.cx-login [hidden],#cxLogin[hidden]{display:none!important}</style></head><body>
 <div class="app-shell">
 <aside class="sidebar"><a class="brand" href="#dashboard"><span class="emblem">◈</span><span>OPTIONX<small>STRATEGY LAB</small></span></a><div class="menu-caption">WORKSPACE</div><nav aria-label="Main navigation"><button class="nav active" data-page="dashboard">◫ <span>Overview</span></button><button class="nav" data-page="markets">⌁ <span>Live Charts</span></button><button class="nav" data-page="paper">◉ <span>Paper Auto</span></button><button class="nav" data-page="live">⚑ <span>Live Broker Setup</span></button><button class="nav" data-page="lab">⌘ <span>Strategy Lab</span></button><button class="nav" data-page="results">▤ <span>Rankings & Results</span></button><button class="nav" data-page="account">♙ <span>Account</span></button></nav><div class="side-bottom"><div class="safe-dot">● &nbsp; PAPER AUTO · LIVE GATE LOCKED</div><p>Paper simulations run while this tab is active. Broker order submission is hard-disabled pending secure integration.</p><small>v1.0 · 23 Nov 2026</small></div></aside>
-<div class="content"><header class="topbar"><div><div class="breadcrumbs">OPTIONX / <span id="breadcrumb">Overview</span></div><h1 id="pageHeading">Trading research workspace</h1></div><div class="top-actions"><span class="tag goldtag">200,000 configurations</span><button id="userButton" class="userbutton" title="Account">Sign in</button></div></header>
+<div class="content"><header class="topbar"><div><div class="breadcrumbs">OPTIONX / <span id="breadcrumb">Overview</span></div><h1 id="pageHeading">Trading research workspace</h1></div><div class="top-actions"><span class="tag goldtag">200,000 configurations</span><button id="installOptionX" class="outline mobile-install-btn" type="button" hidden disabled>Install App</button><button id="userButton" class="userbutton" title="Account">Sign in</button></div></header>
 <main>
 <section id="page-dashboard" class="page active"><div class="hero"><div><div class="eyebrow">QUANT RESEARCH · INDIA & CRYPTO</div><h2>Find the edge.<br><span>Verify the evidence.</span></h2><p>One workspace for NIFTY, BANKNIFTY and Bitcoin. Test rule-based strategies on your own 15-minute OHLC market data, then validate the winners on unseen candles.</p><button class="primary" data-goto="markets">Open market charts ↗</button><button class="subtle" data-goto="results">View rankings</button></div><div class="hero-right"><div class="orb">200K<small>UNIQUE COMBINATIONS</small></div><span class="hero-caveat">No fabricated win rates. Historical data required.</span></div></div>
 <div class="stat-grid"><div class="panel stat"><div class="stat-label">STRATEGY LIBRARY</div><div class="stat-value">2,00,000</div><div class="stat-sub">5 × 5 × 4 × 4 × 5 × 5 × 20</div></div><div class="panel stat"><div class="stat-label">MARKETS</div><div class="stat-value">03</div><div class="stat-sub">NIFTY / BANKNIFTY / BTC</div></div><div class="panel stat"><div class="stat-label">DATA LOADED</div><div class="stat-value" id="dataCount">0 / 3</div><div class="stat-sub">Historical 15-min CSV files</div></div><div class="panel stat"><div class="stat-label">LIVE EXECUTION</div><div class="stat-value status-off">LOCKED</div><div class="stat-sub">Paper auto available separately</div></div></div>
@@ -31,7 +31,7 @@
     <label>Virtual capital (₹ / BTC $)<input id="paperCapital" type="number" min="100" step="100" value="100000"></label>
     <label>Risk per entry (₹ / BTC $)<input id="paperRisk" type="number" min="0.01" step="1" value="300"></label>
     <label>Daily paper loss guard (₹ / BTC $)<input id="paperDaily" type="number" min="0.01" step="1" value="600"></label>
-    <label>Max entries / day<select id="paperMaxTrades"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
+    <label>Daily entries (hard cap 2)<select id="paperMaxTrades"><option>1</option><option selected>2</option></select></label>
     <label>Cost per side (bps)<input id="paperCost" type="number" min="0" max="100" step="1" value="4"></label>
     <label>Slippage per side (bps)<input id="paperSlippage" type="number" min="0" max="100" step="1" value="2"></label>
   </div>
@@ -47,17 +47,100 @@
  <p class="hint">Before live enablement: broker OAuth or secure credential exchange, contract-level prices &amp; lot sizes, paper-to-live validation, broker order/position reconciliation, exchange hours, RMS and regulatory checks, daily stop, kill switch and explicit separate approval. Current site deliberately cannot send real orders.</p></div>
  </section>
 <section id="page-live" class="page">
- <div class="section-bar"><div><h3>Angel One + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
+ <div class="panel pad" id="ownerLiveUnlockPanel" aria-label="Owner live execution unlock status">
+  <div class="section-bar"><div><h3>Owner Live Unlock</h3><p>Owner-verified execution gate · server-side readiness · no browser-side bypass</p></div><span class="paper-badge" id="ownerLiveUnlockBadge">REAL ORDERS OFF</span></div>
+  <p class="hint">This control checks whether production execution is independently certified. It cannot turn real trading on while the broker transport source lock, STOP guard or required safety proofs remain unresolved. AWS verified read-only status is not the same as this website's Render session.</p>
+  <div class="actions"><button type="button" class="primary" id="ownerLiveUnlockCheck">Check Live Unlock Eligibility</button><button type="button" class="outline" id="ownerLiveUnlockRequest">Request Owner Unlock Review</button><button type="button" class="primary" id="ownerLiveActivationAttempt">Owner Unlock / Activate Request</button><button type="button" class="outline" id="ownerLiveUnlockStop" disabled title="Available only when a verified production stop route is installed">Emergency Real STOP (not wired)</button></div>
+  <p class="hint" id="ownerLiveUnlockStatus" role="status" aria-live="polite">Sign in as the bound owner and check the server execution gate. No BUY/SELL/CANCEL can be sent here.</p>
+  <div class="live-check-list" id="ownerLiveUnlockChecks" aria-live="polite"></div>
+ </div>
+ <div class="panel pad" id="v92ManualSlGate" aria-label="Owner controlled manual position SL-LIMIT gate">
+  <div class="section-bar"><div><h3>Manual Position · SL-LIMIT Owner Control</h3><p>Review a proposed protective SELL stop against the authenticated production live gate. This panel never sends an order.</p></div><span class="paper-badge" id="v92ManualSlBadge">NO ORDER ROUTE · GATE LOCKED</span></div>
+  <div class="disclaimer">Only an independently authorized AWS execution worker can place a real broker order. GitHub deployment, browser input or a successful Angel read-only session do not authorize SELL. Verify a fresh broker position, instrument token, tick size, product type, LPP and existing orders at execution time.</div>
+  <div class="form-grid">
+   <label>Contract<input id="v92SlContract" value="NIFTY29DEC2629000CE" readonly></label>
+   <label>Expected long quantity<input id="v92SlQty" type="number" min="1" step="1" value="65"></label>
+   <label>SELL trigger (₹)<input id="v92SlTrigger" inputmode="decimal" type="number" min="0.05" step="0.05" value="6.50"></label>
+   <label>SELL limit (₹)<input id="v92SlLimit" inputmode="decimal" type="number" min="0.05" step="0.05" value="6.45"></label>
+  </div>
+  <div class="actions"><button type="button" class="primary" id="v92SlGateCheck">Check Owner Live Gate + Draft</button></div>
+  <p id="v92SlGateStatus" class="hint" role="status" aria-live="polite">Draft only. Quote, quantity and SL acknowledgment must be freshly verified by AWS. No real SL order has been submitted.</p>
+ </div>
+ <div class="section-bar"><div><h3>Angel One + Stoxkart + Delta Exchange · Broker Setup</h3><p>Prepare a real broker connection safely · live order execution is not enabled</p></div><span class="paper-badge">REAL ORDERS LOCKED</span></div>
  <div class="disclaimer"><b>LIVE TRADING IS OFF:</b> The temporary Angel verification form below sends credentials only to the authenticated backend over HTTPS and never saves PIN/TOTP; it does not place real orders. Your signed-in OPTIONX account is NOT a broker login. Indian exchange auto-orders require broker-approved API access and static-IP/retail-algo compliance. Current Render shared outbound connection has not been whitelisted. Index/spot chart candles cannot safely determine tradable derivatives fills.</div>
+ <div class="panel pad" id="autoAtmPanel">
+ <div class="section-bar">
+  <div><h3>Auto ATM + Automatic SL / Target · 2-Trade Safety</h3>
+  <p>Selected Strategy → verified 15m index signal → nearest ATM CE/PE → real broker premium &amp; Greeks → hypothetical stop and target. No manual strike, price or Greek entry.</p></div>
+  <span class="paper-badge">AUTO RESEARCH · LIVE ORDERS LOCKED</span>
+ </div>
+ <div class="disclaimer"><b>Safe automation:</b> At most 2 entry attempts per India day across NIFTY + BANKNIFTY in the NEW shadow policy, including rejected/unknown attempts. The Browser Paper service has a separate per-market limit; the shared production order counter and broker-native exits are not connected. No new real orders can be submitted.</div>
+ <div class="form-grid">
+  <label>Automatic Strategy<select id="autoAtmStrategy">
+    <option value="ORB18">ORB-18 · first 18 × 5-minute opening range (90min)</option>
+    <option value="EMA">EMA 9/21 · 15-minute crossover</option>
+  </select></label>
+ </div>
+ <div class="stat-grid" aria-label="Automatic ATM research status">
+  <div class="panel stat"><div class="stat-label">Next Strategy Check (IST)</div><div class="stat-sub" id="autoAtmNext">Calculating…</div></div>
+  <div class="panel stat"><div class="stat-label">ATM Contract &amp; Premium</div><div class="stat-sub" id="autoAtmContract">Waiting for verified broker signal</div></div>
+  <div class="panel stat"><div class="stat-label">Automatic Stop / Target</div><div class="stat-sub" id="autoAtmExits">Waiting for fresh broker option quote and Greeks</div></div>
+  <div class="panel stat"><div class="stat-label">Daily Trade Slots</div><div class="stat-sub" id="autoAtmSlots">2 maximum · live count unverified · real orders blocked</div></div>
+ </div>
+ <div class="actions"><button type="button" class="outline" id="autoAtmRefresh">Recheck Read-only Broker Signal</button></div>
+ <p id="autoAtmStatus" class="hint" role="status" aria-live="polite">No manual option price needed. Broker owner authentication and separately authorized read-only flags are required; until then data remain unavailable.</p>
+ <p class="hint"><b>Fill-time estimate:</b> <span id="autoAtmFill">Unknown until actual matching and broker execution. A 15-minute signal check is NOT a fill-time estimate.</span></p>
+ <p class="hint">The selected ATM strike, premium and Greeks are read from Angel One, not Yahoo/spot proxies. If no verified signal appears or Broker Data is stale, the screen stays waiting. MARKET/IOC are forbidden in the algo planner. SL-LIMIT may not fill; this is NOT an automated order execution service.</p>
+</div>
+<div class="panel pad" id="angelGreekRiskPanel">
+  <div class="section-bar"><div><h3>Option Greeks → Automatic SL &amp; Profit Planner</h3><p>Strategy-aware, tick-aligned hypothetical premium exits for NIFTY / BANKNIFTY CE/PE. Not a live trading order.</p></div><span class="paper-badge">MARKET / IOC BLOCKED · PAPER PREVIEW</span></div>
+  <div class="disclaimer"><b>2026 Angel One algo compliance:</b> Do not use MARKET or IOC. Entry is a LIMIT DAY plan; protective exit is a STOPLOSS_LIMIT DAY plan <em>only after verified fill and broker stop-order support</em>. Target SELL LIMIT cannot coexist with a separate stop unless broker-confirmed OCO/reduce-only safety exists. No real order, login or automatic order placement occurs here.</div>
+  <p class="hint">Angel One offers an authenticated Option Greeks API (Delta, Gamma, Theta, Vega, IV) for live contracts. Broker Greek fetch is available through a private, disabled-by-default read-only stage only after owner verification; it is not AWS-linked and may return unavailable. Alternatively enter independently checked option chain values. Do not enter any PIN, API key or TOTP here.</p>
+  <div class="form-grid">
+   <label>Strategy<select id="greek_strategy"><option value="ORB18">ORB-18 Breakout</option><option value="EMA">EMA Trend</option><option value="IV_DEFENSE">High IV / Conservative</option></select></label>
+   <label>Option Type<select id="greek_optionType"><option value="CE">CE — Call Buy</option><option value="PE">PE — Put Buy</option></select></label>
+   <label>Algo Order Type<select id="greek_orderType"><option value="LIMIT">LIMIT (allowed as a plan)</option><option value="MARKET" disabled>MARKET — forbidden</option></select></label>
+   <label>Validity<select id="greek_duration"><option value="DAY">DAY</option><option value="IOC" disabled>IOC — forbidden</option></select></label>
+   <label>Verified option premium (₹)<input type="number" id="greek_premium" min="0.05" step="0.05" placeholder="Enter actual CE/PE premium"></label>
+   <label>Broker lot size<input type="number" id="greek_lotSize" min="1" step="1" placeholder="Check official current lot size"></label>
+   <label>Number of lots<input type="number" id="greek_lots" value="1" min="1" step="1"></label>
+   <label>Verified option tick (₹)<input type="number" id="greek_tick" min="0.01" step="0.01" placeholder="From contract master"></label>
+   <label>Maximum planned loss (₹)<input type="number" id="greek_maxRisk" value="300" min="1" step="1"></label>
+   <label>Minimum planned profit (₹)<input type="number" id="greek_reward" value="600" min="1" step="1"></label>
+   <label>Delta (Δ)<input type="number" id="greek_delta" min="-1" max="1" step="any" placeholder="e.g. +0.5 CE / -0.5 PE"></label>
+   <label>Gamma (Γ)<input type="number" id="greek_gamma" min="0" step="any" placeholder="From option Greeks"></label>
+   <label>Theta (Θ)<input type="number" id="greek_theta" step="any" placeholder="Time decay / day assumption"></label>
+   <label>Vega (ν)<input type="number" id="greek_vega" min="0" step="any" placeholder="Sensitivity / IV point assumption"></label>
+   <label>Implied Volatility (%)<input type="number" id="greek_iv" min="0.01" step="any" placeholder="From live option chain"></label>
+   <label>Scenario underlying move (points)<input type="number" id="greek_spotMove" min="0.01" step="any" placeholder="Expected 15m move"></label>
+   <label>Scenario IV shock (points)<input type="number" id="greek_ivShock" value="1" min="0" step="any"></label>
+   <label>Horizon (minutes)<input type="number" id="greek_minutes" value="15" min="1" max="375" step="1"></label>
+  </div>
+  <div class="actions"><button class="outline" type="button" id="greekFetchBroker" disabled>Fetch Option Greeks from Angel One (read-only)</button><button class="primary" type="button" id="greekCalculate">Calculate SL &amp; Target — Preview</button></div>
+  <p id="greekBrokerStatus" role="status" class="hint">Broker option-chain access is disabled unless the signed-in owner session, selected NFO contract and backend read-only Greeks feature have all been verified.</p>
+  <div class="greek-results" role="group" aria-label="Greeks derived simulated stop and target">
+   <div class="panel"><div class="stat-label">Proposed SELL Stop Trigger</div><strong id="greekStop">—</strong></div>
+   <div class="panel"><div class="stat-label">Proposed SELL Target LIMIT</div><strong id="greekTarget">—</strong></div>
+   <div class="panel"><div class="stat-label">Estimated Premium P&amp;L</div><strong id="greekRiskEstimate">—</strong></div>
+  </div>
+  <p id="greekScenario" class="hint" aria-live="polite">Greek scenario has not been calculated.</p>
+  <p id="greekPlanState" class="hint" role="status" aria-live="polite">Enter verified contract metadata and manually observed Greeks to calculate. This form never sends broker orders.</p>
+  <p class="hint"><b>Limitations:</b> Greeks are sensitivities, not guaranteed execution or returns. Scenario assumes Theta per 375-minute trading day and Vega per 1 IV percentage point; validate the broker conventions. Fees, spread, gaps and slippage can cause greater losses than the estimated amount. Levels change after confirmed fill and live risk checks.</p>
+ </div>
  <div class="stat-grid">
   <div class="panel stat"><div class="stat-label">SECURE GATEWAY</div><div class="stat-sub" id="liveGateway">Checking…</div></div>
   <div class="panel stat"><div class="stat-label">BROKER SESSION</div><div class="stat-sub" id="liveBrokerStatus">Not connected</div></div>
   <div class="panel stat"><div class="stat-label">OWNER BINDING</div><div class="stat-sub" id="liveOwnerStatus">Not configured</div></div>
   <div class="panel stat"><div class="stat-label">REAL ORDER ROUTE</div><div class="stat-value status-off">DISABLED</div><div class="stat-sub">Hard-locked in backend</div></div>
  </div>
+<div class="panel pad" id="v7DevelopmentPanel">
+ <div class="section-bar"><div><h3>V7 Live-Readiness Checklist (development)</h3><p>Review broker permissions, contract verification, persistent risk controls and deployment prerequisites. No order is possible.</p></div><span class="paper-badge">SOURCE ONLY · LIVE OFF</span></div>
+ <p class="hint" id="v7Readiness" role="status">Sign in to view the owner-bound V7 readiness blockers. This development branch is not deployed yet.</p>
+ <p class="hint">Angel profile login is not live trading approval. Static outbound IP registration and real order/recovery testing must be verified separately.</p>
+</div>
 <div class="panel pad" id="angelConnectionPanel">
  <div class="section-bar"><div><h3>Angel One · Secure account verification</h3><p>Personal SmartAPI login + read-only profile check. Credentials are sent once to the secured API, not saved in Supabase or browser storage.</p></div><span class="paper-badge">NO REAL ORDERS</span></div>
- <div class="disclaimer"><b>Before you connect:</b> Verify that you are on https://optionx-200k-strategy-lab.onrender.com. Enter credentials only in this HTTPS form, never in chat or GitHub. The backend must be bound to your OptionX user ID; login sessions are temporary and expire after 15 minutes or server restart. Registered static IP is still required for real orders.</div>
+ <div class="disclaimer"><b>Before you connect:</b> For V7 private read-only account inspection, verify the exact URL is https://optionx-v7-frontend-test-staging.onrender.com. Enter credentials only on this HTTPS staging form, never in chat or GitHub. The backend must be bound to your OptionX user ID; login sessions are temporary and expire after 15 minutes or server restart. Registered static IP is still required for real orders.</div>
  <div class="form-grid">
   <label>Angel One SmartAPI Key<input id="angelApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="API key — not saved" maxlength="128"></label>
   <label>Angel Client Code<input id="angelClient" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your broker Client Code" maxlength="24"></label>
@@ -67,12 +150,62 @@
  <div class="actions"><button type="button" class="primary" id="angelConnect" disabled>Verify Angel login (read-only)</button><button type="button" class="outline" id="angelCheck" disabled>Check session</button><button type="button" class="outline" id="angelDisconnect" disabled>Clear temporary session</button></div>
  <p class="hint" id="angelAuthStatus" role="status">Sign in to OPTIONX and configure private owner binding before testing broker login.</p>
  <p class="hint" id="angelAccountState">Angel One not linked · Live orders are disabled.</p>
- <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. In Render → <b>optionx-market-feed</b> → Environment, set <code>OPTIONX_OWNER_USER_ID</code> to that ID (no PIN or secret in this setting). Wait until the backend redeploys, then verify the login. This private verification is not a broker trading authorization.</div>
+ <div class="panel pad" id="angelReadonlyPanel">
+  <div class="section-bar"><div><h3>Angel One · Read-Only Account Snapshot (V7)</h3><p>View verified NFO positions and order statuses. No order placement, no token export, no quotes or P&amp;L calculations.</p></div><span class="paper-badge">GET ONLY · REAL ORDERS OFF</span></div>
+  <div class="actions">
+   <button id="angelReadonlyPositions" type="button" class="outline" disabled>View NFO Positions</button>
+   <button id="angelReadonlyOrders" type="button" class="outline" disabled>View NFO Order Book</button>
+   <button id="angelReadonlyClear" type="button" class="outline">Clear Snapshot</button>
+  </div>
+  <p class="hint" id="angelReadonlyStatus" role="status" aria-live="polite">Sign in to OptionX, verify Angel One, then use the staging read-only inspection. Backend safety flag is OFF by default.</p>
+  <div id="angelReadonlyRows" class="broker-readonly-rows" aria-live="polite"></div>
+  <p class="hint">Sensitive account data stays on this page in memory only. The snapshot is fetched on demand and cleared on sign-out/disconnection. No execution price feed, margin check or live order permission is implied.</p>
+ </div>
+ <div class="panel pad" id="angelMarketDataPanel">
+  <div class="section-bar"><div><h3>Angel One · Verified NFO Contracts + LTP</h3><p>Current official NIFTY/BANKNIFTY option/future metadata and on-demand indicative last traded price. Read-only market-data pilot; never an execution quote.</p></div><span class="paper-badge">MARKET DATA ONLY · NO ORDERS</span></div>
+  <div class="form-grid">
+   <label>Index market<select id="angelNfoMarket"><option value="NIFTY">NIFTY</option><option value="BANKNIFTY">BANKNIFTY</option></select></label>
+   <label>Contract side<select id="angelNfoSide"><option value="CE">Call (CE)</option><option value="PE">Put (PE)</option><option value="FUT">Futures</option></select></label>
+   <label>Approximate strike (optional)<input id="angelNfoStrike" type="number" min="100" max="500000" step="1" placeholder="e.g. 25000 — enter your desired strike"></label>
+  </div>
+  <div class="actions">
+   <button type="button" class="outline" id="angelNfoLoad" disabled>Load official NFO contracts</button>
+   <button type="button" class="outline" id="angelNfoQuote" disabled>Fetch selected contract LTP</button>
+   <button type="button" class="outline" id="angelNfoCandles" disabled>Fetch 15m contract candles (3 days)</button>
+   <button type="button" class="outline" id="angelNfoCsv" disabled>Download real 15m CSV</button>
+   <button type="button" class="outline" id="angelNfoClear">Clear market-data preview</button>
+  </div>
+  <p class="hint" role="status" id="angelNfoStatus" aria-live="polite">Verify Angel One owner login in this V7 staging app. Quotes are on demand, not streaming or order-ready.</p>
+  <div id="angelNfoRows" class="delta-contract-list"></div>
+  <p class="hint" id="angelNfoPrice" aria-live="polite">No verified contract selected or quote received.</p>
+  <p class="hint" id="angelNfoCandleStatus" aria-live="polite">Contract-specific 15-minute candles have not been fetched.</p>
+  <p class="hint">Master details include contract symbol, expiry, strike, token, broker lot size and tick size. Quote retrieval does NOT establish executable price freshness or margin. No real order routes.</p>
+ </div>
+ <div class="disclaimer"><b>Owner binding:</b> Your signed-in OPTIONX user ID is <code id="angelOwnerId">—</code> <button type="button" class="outline" id="angelCopyOwnerId" disabled>Copy ID</button>. For V7 staging, owner binding is configured on the separate <b>optionx-v7-offline-test-staging</b> backend. Do not change the production <code>optionx-market-feed</code> Environment or paste broker secrets into Render. This private verification is not a broker trading authorization.</div>
 </div>
+ <div class="panel pad" id="stoxkartConnectionPanel">
+ <div class="section-bar"><div><h3>Stoxkart · Superr API Login</h3><p>Free API access advertised by broker; standard trade charges still apply. Broker login and TOTP happen on Stoxkart's own website.</p></div><span class="paper-badge">READ ONLY · NO ORDERS</span></div>
+ <div class="disclaimer"><b>For your first Stoxkart connection:</b> Create an API app at <a href="https://superrapi.stoxkart.com/" target="_blank" rel="noopener noreferrer">Stoxkart Superr API Portal</a>. Set its registered redirect URL to <code>https://optionx-v7-frontend-test-staging.onrender.com/stoxkart_callback.html</code>. Enter your app API key/secret and intended Stoxkart client ID here once. This site never asks for your Stoxkart password/TOTP; complete those at the official broker website. Browser session and server credentials are short-lived; no keys are stored in Supabase.</div>
+ <div class="form-grid">
+  <label>Stoxkart API Key<input id="stoxkartApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" placeholder="API app key · one-time entry"></label>
+  <label>Stoxkart API Secret<input id="stoxkartApiSecret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="256" placeholder="App secret · sent only to temporary backend memory"></label>
+  <label>Expected Stoxkart Client ID<input id="stoxkartClient" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="32" placeholder="Broker client code (not password)"></label>
+ </div>
+ <div class="actions">
+  <button type="button" class="primary" id="stoxkartStart" disabled>Login at Stoxkart (read-only)</button>
+  <button type="button" class="outline" id="stoxkartCheck" disabled>Check Stoxkart session</button>
+  <button type="button" class="outline" id="stoxkartPositions" disabled>View NFO positions (read-only)</button>
+  <button type="button" class="outline" id="stoxkartDisconnect" disabled>Clear Stoxkart session</button>
+ </div>
+ <p class="hint" id="stoxkartAuthStatus" role="status">Sign in to OptionX to prepare the verified owner-only Stoxkart login. No real orders are enabled.</p>
+ <p class="hint" id="stoxkartAccountState">Stoxkart not connected · Real Money Auto Trading OFF</p>
+ <p class="hint" id="stoxkartPositionsState">NIFTY/BANKNIFTY positions will be inspected only after your real broker login.</p>
+ <p class="hint"><b>Android first login:</b> open this V7 URL in a regular Chrome tab rather than the installed standalone app to keep the Stoxkart redirect in the same browser tab. After verification, use the OptionX home-screen app for account setup, read-only status, research and paper trading.</p><p class="hint">Fully unattended auto-orders require the broker/exchange approvals specified in Stoxkart's API terms. Verification is not order permission.</p>
+ </div>
  <div class="panel pad"><div class="section-bar"><div><h3>Broker &amp; Contract Readiness Preview</h3><p>Use estimated values only. No keys or passwords. This does not authorize an order.</p></div><button class="outline" id="liveRefresh" type="button">Refresh connection status</button></div>
  <div class="form-grid">
   <label>Market<select id="liveMarket"><option value="NIFTY">NIFTY options/futures</option><option value="BANKNIFTY">BANKNIFTY options/futures</option><option value="BTC">Bitcoin derivatives</option></select></label>
-  <label>Selected broker<select id="liveBroker"><option value="Angel">Angel One SmartAPI</option><option value="Delta">Delta Exchange India</option></select></label>
+  <label>Selected broker<select id="liveBroker"><option value="Angel">Angel One SmartAPI</option><option value="Stoxkart">Stoxkart Superr API</option><option value="Delta">Delta Exchange India</option></select></label>
   <label>Strategy ID<input id="liveStrategy" type="number" min="1" max="200000" step="1" value="1"></label>
   <label>Direction<select id="liveSide"><option>BUY</option><option>SELL</option></select></label>
   <label><span id="liveContractHint">Exact NFO option/future contract label</span><input id="liveContract" maxlength="72" autocomplete="off" placeholder="Instrument label (not index spot symbol)"></label>
@@ -88,12 +221,17 @@
  <div id="liveCheckResults" class="live-check-list"></div>
  </div>
  <div class="panel pad broker-dual">
-  <div class="section-bar"><div><h3>Dual Broker Routes · Saved to your account</h3><p>Angel One for both NIFTY markets; Delta India for Bitcoin. Save these preferences across devices — no secrets.</p></div><span class="tag">NO LIVE ORDERS</span></div>
+  <div class="section-bar"><div><h3>Broker Routing · Saved to your account</h3><p>Choose Angel One or Stoxkart separately for NIFTY and BANKNIFTY; Delta India for BTC. Store only preferences, never secrets.</p></div><span class="tag">NO LIVE ORDERS</span></div>
   <div class="broker-pair">
    <div class="broker-box"><strong>Angel One SmartAPI</strong><span>NIFTY / BANKNIFTY · CE/PE/Futures</span><small>Broker session: NOT CONNECTED · static-IP and NFO contract mapping required</small><a href="https://smartapi.angelone.in/docs" target="_blank" rel="noopener noreferrer">Official SmartAPI docs ↗</a></div>
-   <div class="broker-box"><strong>Delta Exchange India</strong><span>Bitcoin perpetual futures and options</span><small>Broker session: NOT CONNECTED · API key, IP whitelist, margin and account verification required</small><a href="https://docs.delta.exchange/" target="_blank" rel="noopener noreferrer">Official Delta India docs ↗</a></div>
+   <div class="broker-box"><strong>Stoxkart Superr API</strong><span>NIFTY / BANKNIFTY · CE/PE/Futures</span><small>Official broker-login redirect; fully automated orders require exchange approval</small><a href="https://developers.stoxkart.com/api-documentation/login" target="_blank" rel="noopener noreferrer">Official Superr API login docs ↗</a></div>
+    <div class="broker-box"><strong>Delta Exchange India</strong><span>Bitcoin perpetual futures and options</span><small>Broker session: NOT CONNECTED · API key, IP whitelist, margin and account verification required</small><a href="https://docs.delta.exchange/" target="_blank" rel="noopener noreferrer">Official Delta India docs ↗</a></div>
   </div>
-  <div class="actions"><button id="saveBrokerRoutes" class="outline" type="button" disabled>Save Angel + Delta routing</button><button id="refreshBrokerRoutes" class="outline" type="button" disabled>Check saved routing</button></div>
+  <div class="form-grid">
+   <label>NIFTY route<select id="routeNifty"><option value="Angel">Angel One</option><option value="Stoxkart">Stoxkart</option></select></label>
+   <label>BANKNIFTY route<select id="routeBankNifty"><option value="Angel">Angel One</option><option value="Stoxkart">Stoxkart</option></select></label>
+  </div>
+  <div class="actions"><button id="saveBrokerRoutes" class="outline" type="button" disabled>Save broker routing</button><button id="refreshBrokerRoutes" class="outline" type="button" disabled>Check saved routing</button></div>
   <p class="hint" id="brokerRoutesStatus" role="status">Sign in to save your trading market/broker preferences. Only routing labels — never API keys.</p>
  </div>
  <div class="panel pad broker-dual">
@@ -111,7 +249,51 @@
 <section id="page-lab" class="page"><div class="section-bar"><div><h3>Strategy factory</h3><p>Deterministic enumeration of 200,000 unique configurations.</p></div><span class="tag">70% TRAIN / 30% HOLDOUT</span></div><div class="panel pad"><div class="form-grid"><label>Market<select id="market"><option value="NIFTY">NIFTY 50</option><option value="BANKNIFTY">BANK NIFTY</option><option value="BTC">BITCOIN · BTC/USDT</option></select></label><label>OHLC data source<input id="csvFile" type="file" accept=".csv,text/csv"></label><label>Scan size<select id="scanSize"><option value="2000">Quick research · 2,000</option><option value="20000">Extended · 20,000</option><option value="200000">Exhaustive · all 200,000</option></select></label><label>Training bars per candidate<select id="depth"><option value="1500">Recent 1,500 (fast screen)</option><option value="3000">Recent 3,000</option><option value="0">All available training bars</option></select></label><label>Round-trip cost (basis points)<input type="number" id="fees" min="0" max="500" step="0.5" value="4"></label><label>Timeframe<select id="labTimeframe"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="30m">30 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1d">1 day</option></select></label></div><p class="hint" id="dataInfo">Upload ascending OHLC CSV for the selected timeframe with columns time, open, high, low, close. The file stays in your browser; candles are not uploaded to Supabase.</p><div class="actions"><button class="primary" id="scanBtn">Run backtest ▷</button><button class="outline" id="stopBtn" disabled>Stop scan</button><span class="soft" id="scanStatus" role="status">Awaiting historical candles.</span></div><div class="progress-wrap" id="progressWrap" hidden><div class="progress"><div id="progressBar"></div></div><div class="small" id="progressText">0%</div></div></div>
 <div class="section-bar"><div><h3>Combination architecture</h3><p>Every dimension contributes to the tested rule set.</p></div></div><div class="combo-grid"><div class="panel combo"><span>01</span><h4>Entry signals</h4><p>5</p><small>SMA cross, EMA cross, RSI reversal, Donchian, Bollinger</small></div><div class="panel combo"><span>02</span><h4>Filters</h4><p>5</p><small>None, trend, RSI, volatility, momentum</small></div><div class="panel combo"><span>03</span><h4>Exit methods</h4><p>4</p><small>Fixed, trailing, breakeven, timed exit</small></div><div class="panel combo"><span>04</span><h4>ATR stops</h4><p>4</p><small>1×, 1.5×, 2×, 2.5×</small></div><div class="panel combo"><span>05</span><h4>Reward multiples</h4><p>5</p><small>1R to 3R</small></div><div class="panel combo"><span>06</span><h4>Indicator periods</h4><p>5</p><small>8, 13, 21, 34, 55 bars</small></div><div class="panel combo"><span>07</span><h4>Signal buffer</h4><p>20</p><small>0–19 basis points</small></div></div><div class="disclaimer"><b>Methodology:</b> signal confirmed at bar close; entry at the next bar open; stop-first assumption if TP and SL both touched; costs deducted; no leverage or position-size assumptions; equity normalized to R units. Exhaustive scans are computationally intensive, particularly on mobile. Candidate selection is based only on training data; the last 30% of candles remain unseen until validation.</div></section>
 <section id="page-results" class="page"><div class="section-bar"><div><h3>Ranked strategies</h3><p>Ranked by in-sample risk-adjusted score, with holdout results displayed separately.</p></div><div class="actions"><button class="outline" id="downloadCsv">Export results CSV</button><button class="outline" id="downloadJson">Export JSON</button></div></div><div class="panel result-summary"><div><span class="stat-label">MARKET</span><strong id="resultMarket">—</strong></div><div><span class="stat-label">SCREENED</span><strong id="screened">0</strong></div><div><span class="stat-label">PROFITABLE TRAINING CANDIDATES</span><strong id="viable">0</strong></div><div><span class="stat-label">VALIDATION DATE</span><strong id="splitDate">—</strong></div></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Rank</th><th>Strategy</th><th>Train trades</th><th>Train win %</th><th>Train net R</th><th>OOS trades</th><th>OOS win %</th><th>OOS net R</th><th>OOS max DD</th><th>Paper</th></tr></thead><tbody id="rankingRows"><tr><td colspan="10" class="empty">No verified results yet. Upload 15-minute OHLC CSV and run a backtest.</td></tr></tbody></table></div></div><div class="section-bar"><div><h3>Saved runs</h3><p>Cloud history is private to your signed-in account.</p></div><button class="outline" id="refreshRuns">Refresh</button></div><div class="panel pad"><div id="savedRuns" class="saved-runs">No saved runs found.</div></div></section>
-<section id="page-account" class="page"><div class="panel pad account"><div class="account-icon">◈</div><h3>My research account</h3><p id="accountEmail">Sign in to view your account.</p><div class="actions"><button class="outline" id="signOut">Sign out</button></div><p class="hint">Authentication is provided by Supabase. Each saved run is protected by user-specific row-level security. Uploaded market candles and broker credentials are never stored here.</p></div></section>
+<section id="page-account" class="page"><div class="panel pad account"><div class="account-icon">◈</div><h3>My research account</h3><p id="accountEmail">Sign in to view your account.</p><section id="ownerMfaPanel" class="panel pad" aria-label="Google Authenticator security" style="text-align:left;margin:20px 0;padding:18px;border:1px solid #4b5563;border-radius:12px">
+<h3>Security · Google Authenticator</h3>
+<p class="hint">Protect your OPTIONX owner account with a time-based 6-digit code. This does not enable live trading.</p>
+<p id="ownerMfaStatus" role="status" aria-live="polite">Checking MFA status…</p>
+<div class="actions"><button type="button" class="primary" id="ownerMfaEnroll" disabled>Enable Google Authenticator</button><button type="button" class="outline" id="ownerMfaChallenge" hidden disabled>Verify login with Authenticator</button><button type="button" class="outline" id="ownerMfaRefresh">Refresh MFA Status</button></div>
+<div id="ownerMfaSetup" hidden>
+<p class="hint"><b>Step 1:</b> Open Google Authenticator on your phone and scan this QR code. Never share the QR code or setup key.</p>
+<img id="ownerMfaQr" alt="Private Google Authenticator enrollment QR code" width="200" height="200" style="background:#fff;padding:12px;border-radius:8px;max-width:100%">
+<div id="ownerMfaManual" hidden><p class="hint">If the QR is unavailable, add an account manually in Google Authenticator with this private setup key (Time-based / TOTP).</p><label>Private setup key<input id="ownerMfaSetupKey" type="text" readonly autocomplete="off" spellcheck="false" style="font-family:monospace;max-width:100%"></label><p class="hint">Keep this key private. It is shown only in your authenticated browser during setup.</p></div>
+</div>
+<form id="ownerMfaVerifyForm" hidden autocomplete="off">
+<label>Authenticator 6-digit code<input type="text" id="ownerMfaCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required placeholder="123456"></label>
+<button type="submit" class="primary" id="ownerMfaVerifyButton">Verify 6-digit code</button>
+</form>
+<p class="hint">A verified code upgrades your Supabase session to MFA (AAL2). Owner STOP and live-order authorization are separate safety gates.</p>
+</section><div class="actions"><button class="outline" id="signOut">Sign out</button></div><p id="mobileInstallStatus" class="hint" role="status">Android: open this website in Chrome → menu → Add to Home screen / Install app. App setup and broker access require internet; real orders remain OFF.</p><p class="hint">Authentication is provided by Supabase. Each saved run is protected by user-specific row-level security. Uploaded market candles and broker credentials are never stored here.</p></div></section>
 </main><footer>OPTIONX © 2026 · Research only · Historical performance is not a guarantee of future returns.</footer></div></div>
 <div id="authGate" class="auth-backdrop"><form id="authForm" class="auth-box"><div class="brand"><span class="emblem">◈</span><span>OPTIONX<small>STRATEGY LAB</small></span></div><h2>Quant research. Simplified.</h2><p>Sign up once to access the strategy factory and save your ranked backtest reports.</p><div class="auth-toggle"><button type="button" id="modeSignup" class="selected">Create account</button><button type="button" id="modeSignin">Sign in</button></div><label>Email address<input type="email" autocomplete="email" id="email" placeholder="you@example.com" required></label><label>Password<input type="password" autocomplete="new-password" minlength="8" id="password" placeholder="Minimum 8 characters" required></label><button type="submit" class="primary wide" id="authSubmit">Create account</button><p role="status" id="authStatus" class="auth-status">Secure sign-in · Research and paper mode only</p><small>By signing in you accept that strategy results are for research and are not recommendations.</small></form></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" defer></script><script type="module" src="app.mjs?v=6"></script></body></html>
+<section id="cxLogin" class="cx-login" hidden><h2>OPTIONX · Angel One</h2><p>Secure owner login · read-only market data. No orders.</p><p id="cxMessage" role="status">Checking trusted CHARTX origin…</p><div id="cxAccount" hidden><label>OPTIONX email<input id="cxEmail" type="email" autocomplete="off"></label><label>OPTIONX password<input id="cxPassword" type="password" autocomplete="off"></label><button type="button" class="primary" id="cxSignIn">Sign in to OPTIONX</button></div><div id="cxMfa" hidden><label>OPTIONX Google Authenticator code<input id="cxMfaCode" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></label><button type="button" class="primary" id="cxVerifyMfa">Verify OPTIONX MFA</button></div><div id="cxBroker" hidden><p>Use the existing OPTIONX Angel API. No second API app required.</p><label>Angel API Key<input id="cxApiKey" type="password" autocomplete="off" maxlength="128"></label><label>Angel Client Code<input id="cxClient" autocomplete="off" maxlength="24"></label><label>Angel PIN<input id="cxPin" type="password" autocomplete="off" maxlength="128"></label><label>Angel current TOTP<input id="cxTotp" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></label><label><input id="cxSafe" type="checkbox"> I confirm no active real trading or pending orders; reauthentication can affect other broker sessions.</label><button type="button" class="primary" id="cxBrokerVerify">Verify Angel login</button></div><button type="button" class="outline" id="cxCheck" hidden>Check existing Angel session</button></section><template id="cxNormalModules"><script type="module" src="app.mjs?v=77"></script><script type="module" src="/mobile-install.mjs"></script></template><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1" defer></script><script type="module">const ROOT='https://chartx-pro-lwre.onrender.com',ORIGIN='https://optionx-v7-frontend-test-staging.onrender.com',API='https://optionx-v7-offline-test-staging.onrender.com';
+const $=id=>document.getElementById(id);
+const msg=t=>$('cxMessage').textContent=t;
+const show=(id,v)=>$(id).hidden=!v;
+async function runPanel(){
+ show('cxLogin',true);
+ let valid=false;try{valid=location.origin===ORIGIN&&window.parent!==window&&window.parent===window.top&&new URL(document.referrer).origin===ROOT}catch{}
+ if(!valid){msg('This embedded panel is only available inside the official CHARTX PRO website.');return}
+ // Credentials and OPTIONX tokens remain confined to this trusted origin.
+ // Accept only an explicit handshake from the exact parent, never query strings.
+ const challenge=crypto.randomUUID();
+ const ok=await new Promise(resolve=>{let timer;function receive(e){if(e.origin===ROOT&&e.source===parent&&e.data?.type==='chartx-login-authorize'&&e.data?.challenge===challenge){clearTimeout(timer);window.removeEventListener('message',receive);resolve(true)}}window.addEventListener('message',receive);timer=setTimeout(()=>{window.removeEventListener('message',receive);resolve(false)},8000);parent.postMessage({type:'chartx-login-ready',challenge},ROOT)});
+ if(!ok){msg('CHARTX authorization not confirmed. Close and reopen Angel Data.');return}
+ const SUPABASE_URL='https://yghijfzwsvmzaffllszl.supabase.co';
+ const SUPABASE_PUBLISHABLE='sb_publishable_4MUEQ2Nj1siLELHYIlEJ6g_7L4QVEsr';
+ if(!window.supabase?.createClient){msg('OPTIONX login library unavailable. Retry.');return}
+ const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ let factor=null,busy=false;
+ function exclusive(button,fn){$(button).onclick=async()=>{if(busy)return;busy=true;$(button).disabled=true;try{await fn()}catch{msg('Verification unsuccessful or service unavailable. Check your credentials and retry safely.')}finally{busy=false;$(button).disabled=false}}}
+ async function token(){const a=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(a.error||a.data?.currentLevel!=='aal2')throw Error('MFA required');const s=await client.auth.getSession();if(s.error||!s.data.session?.access_token)throw Error('Sign in required');return s.data.session.access_token}
+ async function api(path,body){if(!['/api/brokers/angel/status','/api/brokers/angel/connect'].includes(path))throw Error('Unsupported route');let headers={Authorization:'Bearer '+await token()};if(body)headers['Content-Type']='application/json';const r=await fetch(API+path,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,cache:'no-store',mode:'cors',redirect:'error',signal:AbortSignal.timeout(45000)});if(!r.ok)throw Error('Broker request failed');return r.json()}
+ async function check(){const s=await api('/api/brokers/angel/status');if(s.ownerMatch!==true){show('cxBroker',false);show('cxCheck',false);msg('This OPTIONX account is not the configured owner. Close and reopen to retry.');return false}show('cxAccount',false);show('cxMfa',false);show('cxCheck',true);show('cxBroker',!s.connected);if(s.connected){msg('OPTIONX Angel session active · '+String(s.maskedClientCode||'')+' · read-only');parent.postMessage({type:'chartx-angel-session-active'},ROOT);return true}msg('Owner verified. Existing Angel session missing or expired. Sign in below only if safe.');return false}
+ async function step(){const a=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(a.error)throw Error('MFA status unavailable');if(a.data?.currentLevel==='aal2'){await check();return}const f=await client.auth.mfa.listFactors();if(f.error)throw Error('MFA unavailable');factor=f.data?.totp?.find(x=>x.status==='verified')?.id;if(!factor){msg('Verified OPTIONX MFA required. Use your existing OPTIONX Authenticator setup.');return}show('cxAccount',false);show('cxMfa',true);msg('Enter the OPTIONX Authenticator code, not Angel TOTP.')}
+ show('cxAccount',true);msg('Sign in with your existing OPTIONX owner account.');
+ exclusive('cxSignIn',async()=>{const email=$('cxEmail').value.trim(),password=$('cxPassword').value;$('cxPassword').value='';const r=await client.auth.signInWithPassword({email,password});if(r.error)throw Error('Sign in failed');await step()});
+ exclusive('cxVerifyMfa',async()=>{const code=$('cxMfaCode').value.trim();$('cxMfaCode').value='';if(!factor||!/^[0-9]{6}$/.test(code))throw Error('Invalid code');const m=await client.auth.mfa.challengeAndVerify({factorId:factor,code});if(m.error)throw Error('MFA failed');await step()});
+ exclusive('cxCheck',check);
+ exclusive('cxBrokerVerify',async()=>{if(!$('cxSafe').checked){msg('Confirm session safety first.');return}const body={apiKey:$('cxApiKey').value.trim(),clientCode:$('cxClient').value.trim().toUpperCase(),pin:$('cxPin').value,totp:$('cxTotp').value.trim()};for(const id of ['cxApiKey','cxClient','cxPin','cxTotp'])$(id).value='';$('cxSafe').checked=false;try{if(await check())return;if($('cxBroker').hidden)return;msg('Verifying broker profile…');const s=await api('/api/brokers/angel/connect',body);if(!s.connected||s.ownerMatch!==true)throw Error('Not connected');await check()}finally{body.apiKey=body.pin=body.totp=''}});
+}
+if(document.documentElement.classList.contains('cx-embed')){runPanel().catch(()=>{show('cxLogin',true);msg('Secure embedded sign-in unavailable. Close and retry.')})}else{for(const entry of $('cxNormalModules').content.querySelectorAll('script[src]'))import(new URL(entry.getAttribute('src'),location.href).href)}</script></body></html>

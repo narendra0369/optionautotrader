@@ -1,0 +1,60 @@
+name: OptionX V7 offline safety regression
+
+on:
+  push:
+    branches:
+      - optionx-live-prep-v7-20261124
+    paths:
+      - 'live_v7/**'
+      - 'market_api.py'
+      - 'angel_gateway.py'
+      - 'live_gateway.py'
+      - 'test_*.py'
+      - '.github/workflows/v7-offline-safety.yml'
+  pull_request:
+    branches:
+      - optionx-200k-strategy-lab-20261123
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: optionx-v7-safe-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPTIONX_V7_READONLY_ANGEL_ENABLED: "0"
+      OPTIONX_REAL_ORDERS_ENABLED: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile offline V7 and backend source
+        run: python -m compileall -q live_v7 market_api.py angel_gateway.py live_gateway.py
+      - name: V7 fail-closed safety tests (offline)
+        run: python -m unittest -v live_v7.test_future_safety
+      - name: ATM auto selection, two entries after SL or target, persistent daily cap
+        run: python -m unittest -v live_v7.test_auto_atm_two_trade
+      - name: Existing backend market and broker regression (offline mocks)
+        run: python -m unittest -v test_market_api
+      - name: Assert production orders always hard-blocked in source
+        run: |
+          python - <<'PY'
+          from live_gateway import hard_block_order
+          x = hard_block_order()
+          assert x['orderSent'] is False
+          assert x['error'] == 'REAL_ORDERS_HARD_LOCKED'
+          print('PASS: live-order routes still hard-locked')
+          PY

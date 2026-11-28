@@ -16,12 +16,24 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 API = 'https://apiconnect.angelone.in'
 LOGIN = '/rest/auth/angelbroking/user/v1/loginByPassword'
 PROFILE = '/rest/secure/angelbroking/user/v1/getProfile'
-MAX_SESSION_SECONDS = 15 * 60
+SESSION_TIMEZONE = ZoneInfo('Asia/Kolkata')
+
+
+def trading_day_expiry(now_seconds: float) -> float:
+    """Never keep an Angel read-only login beyond 00:00 IST of its login day.
+
+    This is a local upper limit, NOT proof the broker JWT remains valid.
+    Broker logout, token revocation and worker restart invalidate it sooner.
+    """
+    local = datetime.fromtimestamp(now_seconds, SESSION_TIMEZONE)
+    next_midnight = (local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return next_midnight.timestamp()
 MAX_ATTEMPTS = 3
 ATTEMPT_WINDOW = 15 * 60
 LOCK = threading.Lock()
@@ -37,18 +49,13 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise AuthError('Broker redirected unexpectedly; connection not accepted')
 
 
-def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=None, *, fetch=None) -> dict:
-    if (method, endpoint) not in (('POST', LOGIN), ('GET', PROFILE)):
-        raise AuthError('Unsupported read-only Angel endpoint')
-    if not key or not isinstance(key, str):
-        raise AuthError('Angel API key is required')
+def angel_client_identity_headers(*, allow_public_lookup: bool = True) -> dict[str, str]:
+    """Same network-identification headers for profile and fixed GET-only reads.
+
+    Observed public IP is advisory, NOT proof of a broker-whitelisted static IP.
+    No broker secrets are ever logged, serialized, or returned to a browser.
+    """
     headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-PrivateKey': key,
-        'X-UserType': 'USER',
-        'X-SourceID': 'WEB',
-        'User-Agent': 'OptionX-ReadOnly/6.0',
         'X-ClientLocalIP': '127.0.0.1',
         'X-MACAddress': ':'.join(f'{(uuid.getnode() >> shift) & 255:02x}' for shift in (40, 32, 24, 16, 8, 0)),
     }
@@ -62,7 +69,7 @@ def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=
                 headers['X-ClientPublicIP'] = str(ip)
         except ValueError:
             raise AuthError('Configured Angel IP is invalid')
-    elif fetch is None:
+    elif allow_public_lookup:
         # Match the SDK's observed-public-IP login header best-effort. This
         # never establishes static IP ownership/whitelisting for API orders.
         try:
@@ -74,6 +81,23 @@ def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=
                 headers['X-ClientPublicIP'] = str(public_ip)
         except (urllib.error.URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError):
             pass  # upstream may reject login; never fake a verified IP
+    return headers
+
+
+def _post_or_get(method: str, endpoint: str, key: str, token: str = '', payload=None, *, fetch=None) -> dict:
+    if (method, endpoint) not in (('POST', LOGIN), ('GET', PROFILE)):
+        raise AuthError('Unsupported read-only Angel endpoint')
+    if not key or not isinstance(key, str):
+        raise AuthError('Angel API key is required')
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-PrivateKey': key,
+        'X-UserType': 'USER',
+        'X-SourceID': 'WEB',
+        'User-Agent': 'OptionX-ReadOnly/6.0',
+        **angel_client_identity_headers(allow_public_lookup=fetch is None),
+    }
     if token:
         headers['Authorization'] = 'Bearer ' + token
     data = json.dumps(payload, separators=(',', ':')).encode() if payload is not None else None
@@ -130,7 +154,8 @@ def status(user_id: str, *, now=None) -> dict:
         'maskedClientCode': session['maskedClientCode'] if session else None,
         'orderExecutionEnabled': False,
         'sessionStorage': 'SERVER_RAM_ONLY',
-        'notice': 'Temporary broker profile verification only. NO real order methods; static-IP execution approval not verified.'
+        'readOnlySessionScope': 'TRADING_DAY_READONLY',
+        'notice': 'Read-only login is locally capped at midnight IST. Broker may expire it sooner; a server restart loses RAM session. Reauthenticate daily. No real orders.'
     }
 
 
@@ -172,7 +197,7 @@ def connect(user_id: str, body: dict, *, fetch=None, now=None) -> dict:
         _SESSIONS[user_id] = {
             'jwt': jwt, 'apiKey': api_key, 'client': result_client,
             'verifiedAt': verified, 'maskedClientCode': _mask_client(result_client),
-            'expires': current + MAX_SESSION_SECONDS,
+            'expires': trading_day_expiry(current),
         }
     return status(user_id, now=current)
 
