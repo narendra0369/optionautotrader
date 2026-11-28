@@ -19,6 +19,7 @@ from live_gateway import capabilities, status as live_status, user_from_token, p
 from dual_brokers import catalog as broker_catalog, delta_product, delta_products, delta_candles
 from angel_gateway import status as angel_status, connect as angel_connect, disconnect as angel_disconnect, AuthError
 from live_v7.readiness import status as v7_dev_readiness
+from live_v7 import chartx_ohlc_bridge
 from live_v7.owner_live_unlock_v46 import live_unlock_status as v46_live_unlock_status
 from live_v7.owner_activation_coordinator_v50 import inspect_owner_activation
 from live_v7.render_aws_relay_v48 import forward_owner_control, RelayBlocked
@@ -172,6 +173,22 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path)
+        if path.path == '/api/chartx/ohlc':
+            # Server-to-server read-only route. No browser origin, no broker login,
+            # no order calls, no session or account details returned.
+            if self.headers.get('Origin'):
+                return self._json(403,{'error':'Server-to-server request required'})
+            params=parse_qs(path.query,keep_blank_values=True)
+            if set(params)!={'symbol','tf'} or any(len(v)!=1 for v in params.values()):
+                return self._json(400,{'error':'Unsupported chart query'})
+            try:
+                return self._json(200,chartx_ohlc_bridge.candles(params['symbol'][0],params['tf'][0],self.headers.get('X-ChartX-Timestamp',''),self.headers.get('X-ChartX-Signature','')))
+            except PermissionError as exc:
+                return self._json(403,{'error':str(exc)})
+            except ValueError as exc:
+                return self._json(503,{'error':str(exc)})
+            except Exception:
+                return self._json(503,{'error':'Angel chart data unavailable'})
         if path.path == '/health': return self._json(200, {'status': 'ok', 'service': 'optionx-public-market-feed', 'paperOnly': True, 'liveOrdersEnabled': False})
         if path.path == '/api/v7/owner/egress':
             # The backend process itself measures outbound IPv4. Strict browser
